@@ -125,8 +125,43 @@ class TestRateWatchChartsE2E(StaticLiveServerTestCase):
         first_date = self.driver.execute_script("return window.fredChart.data.labels[0];")
         expected_year_prefix = str((date.today() - timedelta(days=365 * 5)).year)
         self.assertTrue(
-            first_date.startswith(expected_year_prefix),
+            expected_year_prefix in first_date,
             f"FRED chart timeline should extend 5 years back to {expected_year_prefix}, got {first_date}",
         )
+
+        # 7. Assert Granularity Unit Toggle (Weekly, Monthly Avg, Quarterly Avg)
+        weekly_btn = self.driver.find_element(By.ID, "granularityWeeklyBtn")
+        monthly_btn = self.driver.find_element(By.ID, "granularityMonthlyBtn")
+        quarterly_btn = self.driver.find_element(By.ID, "granularityQuarterlyBtn")
+
+        # Test switching to Quarterly
+        quarterly_btn.click()
+        q_label = self.driver.execute_script("return window.fredChart.data.labels[0];")
+        self.assertTrue(q_label.startswith("Q"), f"Quarterly label should start with 'Q', got {q_label}")
+
+        # Test switching to Weekly
+        weekly_btn.click()
+        w_label = self.driver.execute_script("return window.fredChart.data.labels[0];")
+        self.assertTrue("-" in w_label, f"Weekly label should be date format YYYY-MM-DD, got {w_label}")
+
+        # Test switching back to Monthly
+        monthly_btn.click()
+        m_label = self.driver.execute_script("return window.fredChart.data.labels[0];")
+        self.assertTrue(expected_year_prefix in m_label, f"Monthly label should contain {expected_year_prefix}, got {m_label}")
+
+        # 8. Assert Dispersion canvas cursor is default and Table view toggle enables selectable text
+        disp_cursor = self.driver.execute_script("return window.getComputedStyle(document.getElementById('dispersionChart')).cursor;")
+        self.assertNotEqual(disp_cursor, "grab", "Dispersion chart canvas should not have grab cursor")
+
+        disp_table_btn = self.driver.find_element(By.ID, "dispersionTableBtn")
+        disp_table_btn.click()
+
+        table_wrapper = self.driver.find_element(By.ID, "dispersionTableWrapper")
+        self.assertTrue(table_wrapper.is_displayed(), "Dispersion table view should be visible")
+        self.assertIn("Safe 1 Credit Union", table_wrapper.text)
+
+        disp_chart_btn = self.driver.find_element(By.ID, "dispersionChartBtn")
+        disp_chart_btn.click()
+        self.assertTrue(disp_canvas.is_displayed(), "Dispersion chart view should be visible after toggle back")
 
 

@@ -141,26 +141,27 @@ class Command(BaseCommand):
             notes="Breaks even at month 48; saves $6,033 over 7 years.",
         )
 
-        # 3. Seed 5 years (260 weeks) of historical benchmark points
+        # 3. Seed 5 years (260 weeks) of historical benchmark points if empty
         base_date = date.today()
         now = timezone.now()
 
-        for week in range(260):
-            obs_d = base_date - timedelta(weeks=week)
-            # Simulated realistic mortgage averages
-            val30 = Decimal("6.50") + Decimal(str(round((week * 0.015) % 1.2 - 0.6, 2)))
-            val15 = val30 - Decimal("0.75")
+        if BenchmarkPointModel.objects.count() < 100:
+            for week in range(260):
+                obs_d = base_date - timedelta(weeks=week)
+                # Simulated realistic mortgage averages
+                val30 = Decimal("6.50") + Decimal(str(round((week * 0.015) % 1.2 - 0.6, 2)))
+                val15 = val30 - Decimal("0.75")
 
-            BenchmarkPointModel.objects.update_or_create(
-                series="MORTGAGE30US",
-                observed_on=obs_d,
-                defaults={"value": val30, "fetched_at": now},
-            )
-            BenchmarkPointModel.objects.update_or_create(
-                series="MORTGAGE15US",
-                observed_on=obs_d,
-                defaults={"value": val15, "fetched_at": now},
-            )
+                BenchmarkPointModel.objects.update_or_create(
+                    series="MORTGAGE30US",
+                    observed_on=obs_d,
+                    defaults={"value": val30, "fetched_at": now},
+                )
+                BenchmarkPointModel.objects.update_or_create(
+                    series="MORTGAGE15US",
+                    observed_on=obs_d,
+                    defaults={"value": val15, "fetched_at": now},
+                )
 
         # 4. Seed durable RateAPI credit union market rate snapshots
         cu_snapshots = [

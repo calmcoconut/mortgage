@@ -1,8 +1,11 @@
 import json
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from typing import Any
 from uuid import UUID
 
+from django.conf import settings
+from django.core.management import call_command
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -371,7 +374,105 @@ def option_delete(
     )
 
 
+def aggregate_fred_series(
+    points_30_dict: dict[Any, float], points_15_dict: dict[Any, float]
+) -> dict[str, Any]:
+    all_dates = sorted(set(points_30_dict.keys()) | set(points_15_dict.keys()))
+
+    # 1. Weekly (Raw Observations)
+    weekly_labels = [d.strftime("%Y-%m-%d") for d in all_dates]
+    weekly_30 = [points_30_dict.get(d) for d in all_dates]
+    weekly_15 = [points_15_dict.get(d) for d in all_dates]
+
+    # 2. Monthly Averages (Smooth Trend)
+    monthly_30_map: dict[str, list[float]] = {}
+    monthly_15_map: dict[str, list[float]] = {}
+    months_ordered: list[str] = []
+
+    # 3. Quarterly Averages (Macro Trend)
+    quarterly_30_map: dict[str, list[float]] = {}
+    quarterly_15_map: dict[str, list[float]] = {}
+    quarters_ordered: list[str] = []
+
+    for d in all_dates:
+        # Month key (e.g., "Aug 2021")
+        m_key = d.strftime("%b %Y")
+        if m_key not in monthly_30_map:
+            monthly_30_map[m_key] = []
+            monthly_15_map[m_key] = []
+            months_ordered.append(m_key)
+        if d in points_30_dict:
+            monthly_30_map[m_key].append(points_30_dict[d])
+        if d in points_15_dict:
+            monthly_15_map[m_key].append(points_15_dict[d])
+
+        # Quarter key (e.g., "Q3 2021")
+        q_num = (d.month - 1) // 3 + 1
+        q_key = f"Q{q_num} {d.year}"
+        if q_key not in quarterly_30_map:
+            quarterly_30_map[q_key] = []
+            quarterly_15_map[q_key] = []
+            quarters_ordered.append(q_key)
+        if d in points_30_dict:
+            quarterly_30_map[q_key].append(points_30_dict[d])
+        if d in points_15_dict:
+            quarterly_15_map[q_key].append(points_15_dict[d])
+
+    monthly_30 = [
+        round(sum(monthly_30_map[k]) / len(monthly_30_map[k]), 2)
+        if monthly_30_map[k]
+        else None
+        for k in months_ordered
+    ]
+    monthly_15 = [
+        round(sum(monthly_15_map[k]) / len(monthly_15_map[k]), 2)
+        if monthly_15_map[k]
+        else None
+        for k in months_ordered
+    ]
+
+    quarterly_30 = [
+        round(sum(quarterly_30_map[k]) / len(quarterly_30_map[k]), 2)
+        if quarterly_30_map[k]
+        else None
+        for k in quarters_ordered
+    ]
+    quarterly_15 = [
+        round(sum(quarterly_15_map[k]) / len(quarterly_15_map[k]), 2)
+        if quarterly_15_map[k]
+        else None
+        for k in quarters_ordered
+    ]
+
+    return {
+        "weekly": {
+            "labels": weekly_labels,
+            "rates_30": weekly_30,
+            "rates_15": weekly_15,
+        },
+        "monthly": {
+            "labels": months_ordered,
+            "rates_30": monthly_30,
+            "rates_15": monthly_15,
+        },
+        "quarterly": {
+            "labels": quarters_ordered,
+            "rates_30": quarterly_30,
+            "rates_15": quarterly_15,
+        },
+    }
+
+
 def rate_watch(request: HttpRequest) -> HttpResponse:
+    force_refresh = request.GET.get("refresh") == "1"
+
+    # If force refresh requested and FRED_API_KEY is available, update FRED benchmarks
+    if force_refresh and getattr(settings, "FRED_API_KEY", ""):
+        try:
+            call_command("fetch_fred_benchmarks", years=5)
+        except Exception:
+            pass
+
     latest_30 = (
         BenchmarkPointModel.objects.filter(series="MORTGAGE30US")
         .order_by("-observed_on")
@@ -399,6 +500,7 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
         )
     }
 
+    fred_granularity = aggregate_fred_series(points_30_dict, points_15_dict)
     all_dates = sorted(set(points_30_dict.keys()) | set(points_15_dict.keys()))
     chart_dates = [d.strftime("%Y-%m-%d") for d in all_dates]
     chart_30_vals = [points_30_dict.get(d) for d in all_dates]
@@ -406,7 +508,6 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
 
     # 2. RateAPI Market Data (Product Curve & Credit Union Dispersion)
     adapter = RateApiAdapter()
-    force_refresh = request.GET.get("refresh") == "1"
 
     # Attempt to fetch/persist latest snapshots if none exist or force_refresh
     if force_refresh or not RateApiSnapshotModel.objects.exists():
@@ -476,8 +577,10 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
         "chart_dates_json": json.dumps(chart_dates),
         "chart_30_json": json.dumps(chart_30_vals),
         "chart_15_json": json.dumps(chart_15_vals),
+        "fred_granularity_json": json.dumps(fred_granularity),
         "product_chart_json": json.dumps(product_chart_data),
         "dispersion_chart_json": json.dumps(dispersion_chart_data),
+        "lender_snapshots": lender_snapshots,
         "macro_spread": macro_spread,
         "budget": budget,
         "last_refresh": last_refresh,

@@ -68,13 +68,26 @@ def test_rate_watch_view_with_rateapi_and_fred_data(client):
     assert "dispersion_chart_json" in response.context
     assert "macro_spread" in response.context
 
-    # Assert 5-year timeline dates are included
+    # Assert 5-year timeline dates and granularity aggregations are included
     chart_dates = json.loads(response.context["chart_dates_json"])
     assert five_years_ago.strftime("%Y-%m-%d") in chart_dates
     assert today.strftime("%Y-%m-%d") in chart_dates
 
-    # Assert rendered chart labels in response
+    # Assert granularity dataset
+    assert "fred_granularity_json" in response.context
+    gran_data = json.loads(response.context["fred_granularity_json"])
+    assert "weekly" in gran_data
+    assert "monthly" in gran_data
+    assert "quarterly" in gran_data
+    assert len(gran_data["weekly"]["labels"]) >= 2
+    assert len(gran_data["monthly"]["labels"]) >= 2
+    assert len(gran_data["quarterly"]["labels"]) >= 2
+
+    # Assert rendered chart labels & granularity buttons in response
     assert "30-Year Fixed" in content
     assert "Safe 1" in content
     assert "FRED" in content or "Freddie Mac" in content
+    assert "Monthly Avg" in content
+    assert "Quarterly Avg" in content
+    assert "Weekly" in content
 

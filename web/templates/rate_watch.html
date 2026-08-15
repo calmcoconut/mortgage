@@ -91,8 +91,13 @@
       <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Freddie Mac Primary Mortgage Market Survey 30-Year vs. 15-Year Fixed</p>
     </div>
     <div class="chart-toolbar">
-      <span class="chart-hint">Scroll / drag to zoom & pan</span>
-      <button type="button" class="btn-zoom-reset" onclick="if(window.fredChart) fredChart.resetZoom()">
+      <div class="granularity-segmented-control" id="fredGranularityControl">
+        <button type="button" class="granularity-btn" data-granularity="weekly" id="granularityWeeklyBtn">Weekly</button>
+        <button type="button" class="granularity-btn active" data-granularity="monthly" id="granularityMonthlyBtn">Monthly Avg</button>
+        <button type="button" class="granularity-btn" data-granularity="quarterly" id="granularityQuarterlyBtn">Quarterly Avg</button>
+      </div>
+      <span class="chart-hint" style="margin-left: 4px;">Scroll to zoom & pan</span>
+      <button type="button" class="btn-zoom-reset" id="resetTimelineBtn" onclick="if(window.fredChart && typeof window.fredChart.resetZoom === 'function') fredChart.resetZoom()">
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
           <path d="M3 3v5h5"/>
@@ -108,12 +113,12 @@
 
 <!-- Two Column Row for RateAPI Live Market Intelligence -->
 <div class="two-charts-row" style="margin-bottom: 24px;">
-  <!-- Chart 2: Product Term Structure & Yield Curve -->
+  <!-- Left Column: Product Term Structure & Yield Curve -->
   <div class="chart-card">
     <div class="chart-header">
       <div>
         <h3 class="chart-title">Product Term Structure & Yield Curve</h3>
-        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Average Note Rate & APR across Fixed & Adjustable Loan Products (RateAPI.dev)</p>
+        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Live Market Conforming Rates & APRs by Loan Term</p>
       </div>
     </div>
     <div class="chart-canvas-wrapper" style="height: 340px;">
@@ -121,16 +126,53 @@
     </div>
   </div>
 
-  <!-- Chart 3: Credit Union Rate & APR Dispersion -->
+  <!-- Right Column: Live Credit Union Rate Dispersion -->
   <div class="chart-card">
     <div class="chart-header">
       <div>
         <h3 class="chart-title">Live Credit Union Rate & APR Dispersion</h3>
-        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Current institutional rate quotes in market (RateAPI.dev)</p>
+        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Top California Credit Union Conforming Quotes</p>
+      </div>
+      <div class="chart-toolbar">
+        <div class="granularity-segmented-control" id="dispersionViewControl">
+          <button type="button" class="granularity-btn active" data-view="chart" id="dispersionChartBtn">Chart</button>
+          <button type="button" class="granularity-btn" data-view="table" id="dispersionTableBtn">Table (Copyable)</button>
+        </div>
       </div>
     </div>
-    <div class="chart-canvas-wrapper" style="height: 340px;">
+    <div id="dispersionChartWrapper" class="chart-canvas-wrapper" style="height: 340px;">
       <canvas id="dispersionChart"></canvas>
+    </div>
+    <div id="dispersionTableWrapper" style="display: none; height: 340px; overflow-y: auto; user-select: text; -webkit-user-select: text; padding: 4px 6px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; user-select: text; -webkit-user-select: text;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border-color); text-align: left; color: var(--text-muted);">
+            <th style="padding: 8px 6px; font-weight: 600;">Institution & Product</th>
+            <th style="padding: 8px 6px; font-weight: 600; text-align: right;">Rate</th>
+            <th style="padding: 8px 6px; font-weight: 600; text-align: right;">APR</th>
+            <th style="padding: 8px 6px; font-weight: 600; text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for snap in lender_snapshots %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 6px; font-weight: 600; color: var(--text-primary); user-select: text; -webkit-user-select: text;">
+              <span class="copyable-inst-name" style="user-select: all; -webkit-user-select: all; cursor: text;">{{ snap.lender }}</span>
+              <div style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">{{ snap.product_name|default:snap.product_type }}</div>
+            </td>
+            <td style="padding: 8px 6px; text-align: right; color: #0f766e; font-weight: 700;">{{ snap.rate }}%</td>
+            <td style="padding: 8px 6px; text-align: right; color: #6366f1; font-weight: 600;">{{ snap.apr }}%</td>
+            <td style="padding: 8px 6px; text-align: center;">
+              <button type="button" class="btn-copy-name" onclick="navigator.clipboard.writeText('{{ snap.lender|escapejs }}'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1200);" style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; cursor: pointer; color: #475569; font-weight: 600;">
+                Copy
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">No snapshots available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -142,36 +184,44 @@
 
 {% block extra_scripts %}
 <script>
-  // 1. Primary Historical FRED Chart
-  const dates = {{ chart_dates_json|safe }};
-  const rate30 = {{ chart_30_json|safe }};
-  const rate15 = {{ chart_15_json|safe }};
+  // 1. Primary Historical FRED Chart with Granularity Unit Switcher
+  const fredGranularityData = {{ fred_granularity_json|default:"null"|safe }};
+  const fallbackDates = {{ chart_dates_json|safe }};
+  const fallback30 = {{ chart_30_json|safe }};
+  const fallback15 = {{ chart_15_json|safe }};
 
-  if (dates && dates.length > 0) {
+  let currentGranularity = 'monthly';
+  let initialData = (fredGranularityData && fredGranularityData[currentGranularity])
+    ? fredGranularityData[currentGranularity]
+    : { labels: fallbackDates, rates_30: fallback30, rates_15: fallback15 };
+
+  if (initialData && initialData.labels && initialData.labels.length > 0) {
     const ctx = document.getElementById('fredChart').getContext('2d');
     window.fredChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: dates,
+        labels: initialData.labels,
         datasets: [
           {
             label: '30-Year Fixed (MORTGAGE30US)',
-            data: rate30,
+            data: initialData.rates_30,
             borderColor: '#0f766e',
             backgroundColor: 'rgba(15, 118, 110, 0.05)',
             borderWidth: 2.5,
             fill: true,
-            pointRadius: 1,
-            tension: 0.2
+            pointRadius: currentGranularity === 'weekly' ? 0.5 : 2,
+            pointHoverRadius: 5,
+            tension: 0.25
           },
           {
             label: '15-Year Fixed (MORTGAGE15US)',
-            data: rate15,
+            data: initialData.rates_15,
             borderColor: '#0284c7',
             backgroundColor: 'rgba(2, 132, 199, 0.05)',
             borderWidth: 2,
-            pointRadius: 1,
-            tension: 0.2
+            pointRadius: currentGranularity === 'weekly' ? 0.5 : 2,
+            pointHoverRadius: 5,
+            tension: 0.25
           }
         ]
       },
@@ -198,10 +248,34 @@
           },
           x: {
             grid: { display: false },
-            ticks: { maxTicksLimit: 12 }
+            ticks: { maxTicksLimit: 14 }
           }
         }
       }
+    });
+
+    // Granularity Toggle Event Handlers
+    document.querySelectorAll('#fredGranularityControl .granularity-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const unit = this.getAttribute('data-granularity');
+        if (!unit || !fredGranularityData || !fredGranularityData[unit] || !window.fredChart) return;
+
+        document.querySelectorAll('#fredGranularityControl .granularity-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        currentGranularity = unit;
+        const dataset = fredGranularityData[unit];
+        window.fredChart.data.labels = dataset.labels;
+        window.fredChart.data.datasets[0].data = dataset.rates_30;
+        window.fredChart.data.datasets[1].data = dataset.rates_15;
+        window.fredChart.data.datasets[0].pointRadius = unit === 'weekly' ? 0.5 : 2;
+        window.fredChart.data.datasets[1].pointRadius = unit === 'weekly' ? 0.5 : 2;
+
+        if (typeof window.fredChart.resetZoom === 'function') {
+          window.fredChart.resetZoom();
+        }
+        window.fredChart.update();
+      });
     });
   }
 
@@ -313,6 +387,29 @@
           }
         }
       }
+    });
+
+    // 4. Dispersion View Switcher (Chart vs Table)
+    document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const view = this.getAttribute('data-view');
+        document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        const chartWrapper = document.getElementById('dispersionChartWrapper');
+        const tableWrapper = document.getElementById('dispersionTableWrapper');
+
+        if (view === 'table') {
+          chartWrapper.style.display = 'none';
+          tableWrapper.style.display = 'block';
+        } else {
+          tableWrapper.style.display = 'none';
+          chartWrapper.style.display = 'block';
+          if (window.dispersionChart) {
+            window.dispersionChart.resize();
+          }
+        }
+      });
     });
   }
 </script>
