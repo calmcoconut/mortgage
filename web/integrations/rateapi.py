@@ -310,7 +310,21 @@ class RateApiAdapter:
             if not lender_name:
                 continue
             p_name = off.get("product_name") or off.get("display_name") or f"{term_months // 12}Y Fixed"
-            p_type = "30-year-fixed" if term_months >= 300 else f"{term_months // 12}-year-fixed"
+            p_name_lower = p_name.lower()
+            if "7/1" in p_name_lower or "7-1" in p_name_lower or (term_months == 84 and "arm" in p_name_lower):
+                p_type = "7-1-arm"
+            elif "5/1" in p_name_lower or "5-1" in p_name_lower or (term_months == 60 and "arm" in p_name_lower):
+                p_type = "5-1-arm"
+            elif "3/1" in p_name_lower or "3-1" in p_name_lower or (term_months == 36 and "arm" in p_name_lower):
+                p_type = "3-1-arm"
+            elif term_months >= 300:
+                p_type = "30-year-fixed"
+            elif term_months >= 160:
+                p_type = "15-year-fixed"
+            elif term_months >= 100:
+                p_type = "10-year-fixed"
+            else:
+                p_type = f"{term_months // 12}-year-fixed"
             elig_obj = off.get("eligibility") or {}
             req_sum = elig_obj.get("requirements_summary", "")
 

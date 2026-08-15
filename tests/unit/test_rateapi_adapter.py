@@ -22,7 +22,11 @@ def test_get_amount_bucket():
 
 
 def test_build_payload_purchase():
-    adapter = RateApiAdapter(api_key="test_key")
+    adapter = RateApiAdapter(
+        api_key="test_key",
+        default_city="",
+        default_zip="",
+    )
     payload = adapter.build_payload(
         state="CA",
         amount=Decimal("500000"),

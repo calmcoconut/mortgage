@@ -32,7 +32,8 @@ def test_fetch_fred_benchmarks_success():
 
 
 @pytest.mark.django_db
-def test_fetch_fred_benchmarks_no_key_warning(capsys):
+def test_fetch_fred_benchmarks_no_key_warning(capsys, settings):
+    settings.FRED_API_KEY = ""
     # Should not crash if no API key is provided
     call_command("fetch_fred_benchmarks", api_key="")
     captured = capsys.readouterr()
@@ -41,3 +42,4 @@ def test_fetch_fred_benchmarks_no_key_warning(capsys):
         or "No FRED_API_KEY" in captured.err
         or BenchmarkPointModel.objects.count() == 0
     )
+
