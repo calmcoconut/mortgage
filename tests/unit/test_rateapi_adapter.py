@@ -49,6 +49,27 @@ def test_build_payload_purchase():
     }
 
 
+def test_build_payload_state_and_county_only():
+    adapter = RateApiAdapter(
+        api_key="test_key",
+        default_state="CA",
+        default_county="Santa Clara",
+        default_city="",
+        default_zip="",
+    )
+    payload = adapter.build_payload(
+        amount=Decimal("680000"),
+        term_months=360,
+        intent="purchase",
+    )
+    assert payload["context"]["geo"] == {
+        "state": "CA",
+        "county": "Santa Clara",
+    }
+    assert "city" not in payload["context"]["geo"]
+    assert "zip" not in payload["context"]["geo"]
+
+
 def test_build_payload_refinance():
     adapter = RateApiAdapter(api_key="test_key")
     payload = adapter.build_payload(

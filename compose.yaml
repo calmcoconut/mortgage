@@ -11,5 +11,10 @@ services:
       - DATABASE_PATH=/data/db.sqlite3
       - FRED_API_KEY=${FRED_API_KEY:-}
       - RATEAPI_KEY=${RATEAPI_KEY:-}
+      - RATEAPI_CACHE_TTL_DAYS=${RATEAPI_CACHE_TTL_DAYS:-7}
+      - DEFAULT_STATE=${DEFAULT_STATE:-CA}
+      - DEFAULT_CITY=${DEFAULT_CITY:-}
+      - DEFAULT_COUNTY=${DEFAULT_COUNTY:-}
+      - DEFAULT_ZIP=${DEFAULT_ZIP:-}
     volumes:
       - ./data:/data

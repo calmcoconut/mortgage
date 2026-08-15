@@ -35,6 +35,10 @@ class RateApiAdapter:
         safety_threshold: int | None = None,
         cache_ttl_days: int | None = None,
         request_timeout: tuple[float, float] | int | float | None = None,
+        default_state: str | None = None,
+        default_city: str | None = None,
+        default_county: str | None = None,
+        default_zip: str | None = None,
     ):
         self.api_key = (
             api_key
@@ -61,6 +65,26 @@ class RateApiAdapter:
             if request_timeout is not None
             else getattr(settings, "RATEAPI_REQUEST_TIMEOUT", (3.05, 10))
         )
+        self.default_state = (
+            default_state
+            if default_state is not None
+            else getattr(settings, "DEFAULT_STATE", "CA")
+        )
+        self.default_city = (
+            default_city
+            if default_city is not None
+            else getattr(settings, "DEFAULT_CITY", "")
+        )
+        self.default_county = (
+            default_county
+            if default_county is not None
+            else getattr(settings, "DEFAULT_COUNTY", "")
+        )
+        self.default_zip = (
+            default_zip
+            if default_zip is not None
+            else getattr(settings, "DEFAULT_ZIP", "")
+        )
 
     def get_budget_status(self) -> dict[str, Any]:
         """Returns budget usage info for current month."""
@@ -83,22 +107,27 @@ class RateApiAdapter:
 
     def build_payload(
         self,
-        state: str,
-        amount: Decimal,
-        term_months: int,
+        state: str | None = None,
+        amount: Decimal = Decimal("500000"),
+        term_months: int = 360,
         intent: str = "purchase",
         county: str | None = None,
         zip_code: str | None = None,
         city: str | None = None,
         current_apr: Decimal | None = None,
     ) -> dict[str, Any]:
-        geo: dict[str, Any] = {"state": state.upper()}
-        if county:
-            geo["county"] = county
-        if zip_code:
-            geo["zip"] = zip_code
-        if city:
-            geo["city"] = city
+        target_state = (state or self.default_state).upper()
+        target_city = city if city is not None else (self.default_city or None)
+        target_county = county if county is not None else (self.default_county or None)
+        target_zip = zip_code if zip_code is not None else (self.default_zip or None)
+
+        geo: dict[str, Any] = {"state": target_state}
+        if target_county:
+            geo["county"] = target_county
+        if target_zip:
+            geo["zip"] = target_zip
+        if target_city:
+            geo["city"] = target_city
 
         product_req: dict[str, Any] = {
             "product_type": "mortgage",
@@ -148,9 +177,9 @@ class RateApiAdapter:
 
     def fetch_decisions(
         self,
-        state: str,
-        amount: Decimal,
-        term_months: int,
+        state: str | None = None,
+        amount: Decimal = Decimal("500000"),
+        term_months: int = 360,
         intent: str = "purchase",
         county: str | None = None,
         zip_code: str | None = None,
@@ -159,8 +188,9 @@ class RateApiAdapter:
         force_refresh: bool = False,
     ) -> dict[str, Any]:
         now = timezone.now()
+        target_state = (state or self.default_state).upper()
         amount_bucket = get_amount_bucket(amount, self.bucket_size)
-        cache_key = f"{state.upper()}_{intent}_{amount_bucket}_{term_months}"
+        cache_key = f"{target_state}_{intent}_{amount_bucket}_{term_months}"
 
         # 1. Check Cache
         if not force_refresh:

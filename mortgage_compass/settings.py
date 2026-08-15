@@ -72,3 +72,9 @@ RATEAPI_BUCKET_SIZE = int(os.environ.get("RATEAPI_BUCKET_SIZE", "25000"))
 RATEAPI_SAFETY_THRESHOLD = int(os.environ.get("RATEAPI_SAFETY_THRESHOLD", "18"))
 RATEAPI_CACHE_TTL_DAYS = int(os.environ.get("RATEAPI_CACHE_TTL_DAYS", "7"))  # Default: 1 week (7 days)
 
+# Geographic defaults for localized market intelligence & credit union queries
+DEFAULT_STATE = os.environ.get("DEFAULT_STATE", os.environ.get("RATEAPI_DEFAULT_STATE", "CA")).upper()
+DEFAULT_CITY = os.environ.get("DEFAULT_CITY", os.environ.get("RATEAPI_DEFAULT_CITY", ""))
+DEFAULT_COUNTY = os.environ.get("DEFAULT_COUNTY", os.environ.get("RATEAPI_DEFAULT_COUNTY", ""))
+DEFAULT_ZIP = os.environ.get("DEFAULT_ZIP", os.environ.get("RATEAPI_DEFAULT_ZIP", ""))
+
