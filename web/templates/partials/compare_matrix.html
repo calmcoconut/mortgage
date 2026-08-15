@@ -45,6 +45,13 @@
             <div class="option-source-label">
               {% if item.model.source_type == 'loan_estimate' %}
                 Verified Loan Estimate, confirmed by you
+              {% elif item.model.source_type == 'rate_api' %}
+                RateAPI.dev live market offer ({{ item.model.institution_name|default:"Credit Union" }})
+                {% if item.model.confidence_score %}
+                  <span class="badge" style="font-size:0.7rem; padding:1px 5px; background:rgba(16,185,129,0.15); color:#0d9488; border:1px solid rgba(16,185,129,0.3);">
+                    {{ item.model.confidence_score|floatformat:2 }} Confidence
+                  </span>
+                {% endif %}
               {% else %}
                 Advertised observation, observed {{ item.model.entered_on|date:"M j" }}
               {% endif %}

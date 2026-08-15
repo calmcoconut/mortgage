@@ -29,6 +29,18 @@
       <span>Lock: 30 days</span>
     </div>
 
+    <!-- RateAPI Live Market Offers Button -->
+    <button type="button"
+            id="btn-rateapi-enrich"
+            class="btn btn-secondary btn-sm"
+            style="display: flex; align-items: center; gap: 6px;"
+            hx-get="{% url 'web:scenario_enrich_preview' scenario.id %}"
+            hx-target="#rateapi-modal-container"
+            hx-swap="innerHTML">
+      <span>🏛️</span>
+      <span>Live Market Offers</span>
+    </button>
+
     <!-- Add Option Button -->
     <a href="{% url 'web:option_create' scenario_id=scenario.id %}" class="btn btn-primary btn-sm">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -39,6 +51,8 @@
     </a>
   </div>
 </div>
+
+<div id="rateapi-modal-container"></div>
 
 <div id="compare-matrix-wrapper">
   {% include "partials/compare_matrix.html" %}

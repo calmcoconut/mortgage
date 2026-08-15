@@ -11,7 +11,18 @@ from django.views.decorators.csrf import csrf_exempt
 from core.models import ScenarioInput
 from core.screening import screen_all_programs
 from web.forms import LoanOptionForm, ScenarioForm
-from web.models import BenchmarkPointModel, LoanOptionModel, ScenarioModel
+from web.integrations.rateapi import (
+    BudgetExhaustedError,
+    RateApiAdapter,
+    aggregate_product_term_structure,
+    calculate_fred_vs_cu_spread,
+)
+from web.models import (
+    BenchmarkPointModel,
+    LoanOptionModel,
+    RateApiSnapshotModel,
+    ScenarioModel,
+)
 from web.services import (
     build_projected_costs_chart_data,
     compare_scenario,
@@ -372,23 +383,85 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
         .first()
     )
 
-    points_30 = list(
-        BenchmarkPointModel.objects.filter(series="MORTGAGE30US").order_by(
-            "-observed_on"
-        )[:265]
-    )
-    points_30.reverse()
+    five_years_ago = timezone.now().date() - timedelta(days=365 * 5 + 30)
 
-    points_15 = list(
-        BenchmarkPointModel.objects.filter(series="MORTGAGE15US").order_by(
-            "-observed_on"
-        )[:265]
-    )
-    points_15.reverse()
+    # 1. Historical FRED Timeline (Spanning 5 full years)
+    points_30_dict = {
+        p.observed_on: float(p.value)
+        for p in BenchmarkPointModel.objects.filter(
+            series="MORTGAGE30US", observed_on__gte=five_years_ago
+        )
+    }
+    points_15_dict = {
+        p.observed_on: float(p.value)
+        for p in BenchmarkPointModel.objects.filter(
+            series="MORTGAGE15US", observed_on__gte=five_years_ago
+        )
+    }
 
-    chart_dates = [p.observed_on.strftime("%Y-%m-%d") for p in points_30]
-    chart_30_vals = [float(p.value) for p in points_30]
-    chart_15_vals = [float(p.value) for p in points_15]
+    all_dates = sorted(set(points_30_dict.keys()) | set(points_15_dict.keys()))
+    chart_dates = [d.strftime("%Y-%m-%d") for d in all_dates]
+    chart_30_vals = [points_30_dict.get(d) for d in all_dates]
+    chart_15_vals = [points_15_dict.get(d) for d in all_dates]
+
+    # 2. RateAPI Market Data (Product Curve & Credit Union Dispersion)
+    adapter = RateApiAdapter()
+    force_refresh = request.GET.get("refresh") == "1"
+
+    # Attempt to fetch/persist latest snapshots if none exist or force_refresh
+    if force_refresh or not RateApiSnapshotModel.objects.exists():
+        adapter.fetch_and_persist_market_rates(state="CA", force_refresh=force_refresh)
+
+    product_curve = aggregate_product_term_structure()
+    product_chart_data = {
+        "labels": [p["label"] for p in product_curve],
+        "rates": [p["avg_rate"] for p in product_curve],
+        "aprs": [p["avg_apr"] for p in product_curve],
+    }
+
+    def _format_short_lender(lender: str, product_name: str, product_type: str) -> str:
+        short_lender = (
+            lender.replace("Federal Credit Union", "FCU")
+            .replace("Credit Union", "CU")
+            .replace("Community", "Comm.")
+            .strip()
+        )
+        combined = f"{product_name or ''} {product_type or ''}".lower()
+        if "30" in combined or "30-year" in combined:
+            p_label = "30Y Fixed"
+        elif "15" in combined or "15-year" in combined:
+            p_label = "15Y Fixed"
+        elif "10" in combined or "10-year" in combined:
+            p_label = "10Y Fixed"
+        elif "7/1" in combined or "7-1" in combined or "7 & 1" in combined:
+            p_label = "7/1 ARM"
+        elif "5/1" in combined or "5-1" in combined or "5 & 1" in combined:
+            p_label = "5/1 ARM"
+        elif "3/1" in combined or "3-1" in combined or "3 & 1" in combined:
+            p_label = "3/1 ARM"
+        elif "arm" in combined:
+            p_label = "ARM"
+        else:
+            p_label = (product_name or product_type).replace("Conforming", "").replace("Rate", "").strip()
+
+        return f"{short_lender} ({p_label})"
+
+    lender_snapshots = list(RateApiSnapshotModel.objects.order_by("rate")[:8])
+    dispersion_chart_data = {
+        "labels": [
+            _format_short_lender(s.lender, s.product_name, s.product_type)
+            for s in lender_snapshots
+        ],
+        "full_names": [
+            f"{s.lender} — {s.product_name or s.product_type}"
+            for s in lender_snapshots
+        ],
+        "rates": [float(s.rate) for s in lender_snapshots],
+        "aprs": [float(s.apr) for s in lender_snapshots],
+    }
+
+    macro_spread = calculate_fred_vs_cu_spread()
+    budget = adapter.get_budget_status()
 
     last_refresh = None
     is_stale = False
@@ -403,6 +476,10 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
         "chart_dates_json": json.dumps(chart_dates),
         "chart_30_json": json.dumps(chart_30_vals),
         "chart_15_json": json.dumps(chart_15_vals),
+        "product_chart_json": json.dumps(product_chart_data),
+        "dispersion_chart_json": json.dumps(dispersion_chart_data),
+        "macro_spread": macro_spread,
+        "budget": budget,
         "last_refresh": last_refresh,
         "is_stale": is_stale,
     }
@@ -411,3 +488,107 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
 
 def learn(request: HttpRequest) -> HttpResponse:
     return render(request, "learn.html")
+
+
+def scenario_enrich_preview(request: HttpRequest, scenario_id: UUID) -> HttpResponse:
+    scenario = get_object_or_404(ScenarioModel, id=scenario_id)
+    force_refresh = request.GET.get("refresh") == "1"
+    adapter = RateApiAdapter()
+
+    # If refinance, check if there's an existing APR to compare against
+    current_apr = None
+    if scenario.purpose == "refinance":
+        existing_options = scenario.loan_options.all()
+        if existing_options.exists():
+            valid_aprs = [opt.apr for opt in existing_options if opt.apr]
+            if valid_aprs:
+                current_apr = min(valid_aprs)
+
+    county = getattr(scenario, "county_fips", None)
+
+    try:
+        result = adapter.fetch_decisions(
+            state=scenario.state,
+            amount=scenario.loan_amount,
+            term_months=scenario.term_months,
+            intent=scenario.purpose,
+            county=county,
+            current_apr=current_apr,
+            force_refresh=force_refresh,
+        )
+        context = {
+            "scenario": scenario,
+            "offers": result.get("offers", []),
+            "from_cache": result.get("from_cache", False),
+            "cached_at": result.get("cached_at"),
+            "budget": result.get("budget", {}),
+            "warning": result.get("warning"),
+        }
+    except BudgetExhaustedError as e:
+        context = {
+            "scenario": scenario,
+            "offers": [],
+            "from_cache": False,
+            "budget": adapter.get_budget_status(),
+            "warning": str(e),
+        }
+    except Exception as e:
+        context = {
+            "scenario": scenario,
+            "offers": [],
+            "from_cache": False,
+            "budget": adapter.get_budget_status(),
+            "warning": f"Unable to reach RateAPI.dev: {e}",
+        }
+
+    return render(request, "partials/rateapi_offers_modal.html", context)
+
+
+def scenario_import_rateapi_offer(
+    request: HttpRequest, scenario_id: UUID
+) -> HttpResponse:
+    scenario = get_object_or_404(ScenarioModel, id=scenario_id)
+    if request.method == "POST":
+        label = request.POST.get("label", "RateAPI Market Offer")
+        institution_name = request.POST.get("institution_name", "")
+        raw_rate = request.POST.get("note_rate", "0")
+        raw_apr = request.POST.get("apr", "")
+        raw_points = request.POST.get("points_pct", "0")
+        raw_amount = request.POST.get("loan_amount", str(scenario.loan_amount))
+        raw_term = request.POST.get("term_months", str(scenario.term_months))
+        raw_conf = request.POST.get("confidence_score")
+
+        def parse_rate_pct(val: str) -> Decimal:
+            d = Decimal(val)
+            if d > 1:
+                return d / 100
+            return d
+
+        try:
+            note_rate = parse_rate_pct(raw_rate)
+            apr = parse_rate_pct(raw_apr) if raw_apr else None
+            points_pct = parse_rate_pct(raw_points)
+            loan_amount = Decimal(raw_amount)
+            term_months = int(raw_term)
+            confidence_score = Decimal(raw_conf) if raw_conf else None
+        except (InvalidOperation, ValueError):
+            return redirect("web:scenario_compare", scenario_id=scenario.id)
+
+        LoanOptionModel.objects.create(
+            scenario=scenario,
+            label=label,
+            institution_name=institution_name,
+            source_type="rate_api",
+            note_rate=note_rate,
+            apr=apr,
+            points_pct=points_pct,
+            loan_amount=loan_amount,
+            term_months=term_months,
+            confidence_score=confidence_score,
+            lender_credit=Decimal("0.00"),
+            lender_fees=Decimal("0.00"),
+            notes=f"Imported from live market quote via RateAPI.dev for {institution_name}.",
+        )
+
+    return redirect("web:scenario_compare", scenario_id=scenario.id)
+

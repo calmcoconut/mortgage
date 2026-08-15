@@ -9,6 +9,7 @@ from uuid import UUID
 class SourceType(StrEnum):
     MANUAL = "manual"
     LOAN_ESTIMATE = "loan_estimate"
+    RATE_API = "rate_api"
 
 
 class ScreeningState(StrEnum):
@@ -65,6 +66,8 @@ class LoanOptionInput:
     monthly_mi: Decimal | None = None
     upfront_mi: Decimal | None = None
     notes: str | None = None
+    institution_name: str | None = None
+    confidence_score: Decimal | None = None
 
 
 @dataclass(frozen=True)

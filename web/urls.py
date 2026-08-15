@@ -45,6 +45,17 @@ urlpatterns = [
         views.scenario_screen_preview,
         name="scenario_screen_preview",
     ),
+    path(
+        "scenarios/<uuid:scenario_id>/enrich-offers/",
+        views.scenario_enrich_preview,
+        name="scenario_enrich_preview",
+    ),
+    path(
+        "scenarios/<uuid:scenario_id>/import-offer/",
+        views.scenario_import_rateapi_offer,
+        name="scenario_import_rateapi_offer",
+    ),
     path("rate-watch/", views.rate_watch, name="rate_watch"),
     path("learn/", views.learn, name="learn"),
 ]
+

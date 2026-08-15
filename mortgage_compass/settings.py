@@ -66,6 +66,8 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "web" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+RATEAPI_KEY = os.environ.get("RATEAPI_KEY", "")
+RATEAPI_BUCKET_SIZE = int(os.environ.get("RATEAPI_BUCKET_SIZE", "25000"))
+RATEAPI_SAFETY_THRESHOLD = int(os.environ.get("RATEAPI_SAFETY_THRESHOLD", "18"))
+

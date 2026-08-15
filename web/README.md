@@ -1,6 +1,6 @@
 # Web Application Layer (`web/`) — Developer Guide
 
-The `web/` package provides the Django persistence layer, HTML templates, HTMX-driven reactive endpoints, and Chart.js serialization for Mortgage Compass.
+The `web/` package provides the Django persistence layer, HTML templates, HTMX-driven reactive endpoints, RateAPI live market offer integration, and Chart.js serialization for Mortgage Compass.
 
 ---
 
@@ -11,20 +11,23 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 ├── [apps.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/apps.py)
 │   └── Django AppConfig registration for the web application.
 ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py)
-│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7) (home price, down payment, income/debt context), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L98) (rate, APR, points, confidence metadata), and [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L145) (historical FRED benchmark series).
+│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L98), [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L151), [`RateApiCacheModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L167), [`RateApiBudgetModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L186), and [`RateApiSnapshotModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L200).
 ├── [forms.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py)
 │   └── Django ModelForms: [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L8) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L95) with decimal percentage-to-ratio conversions.
 ├── [services.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py)
 │   └── Domain boundary converters ([`scenario_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L15), [`loan_option_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L38)) and Chart.js precomputed serializer ([`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L78)).
+├── integrations/
+│   └── [rateapi.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/integrations/rateapi.py)
+│       └── RateAPI.dev adapter with $25k amount-bucketed 24-hour caching, 18-call monthly budget guard, and confidence anomaly filtering.
 ├── [urls.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/urls.py)
-│   └── URL routing definitions for scenario management, HTMX live screening, matrix comparisons, projected costs, option CRUD, rate watch, and methodology.
+│   └── URL routing definitions for scenario management, HTMX live screening, matrix comparisons, projected costs, option CRUD, RateAPI previews, rate watch, and methodology.
 ├── [views.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py)
-│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L143), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L226), and [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L76).
+│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L154), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L237), [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L87), [`scenario_enrich_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L493), and [`scenario_import_rateapi_offer()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L547).
 ├── management/commands/
 │   ├── [fetch_fred_benchmarks.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_fred_benchmarks.py)
 │   │   └── CLI command querying the Federal Reserve Economic Data (FRED) API for 5 years of weekly 30-year (`MORTGAGE30US`) and 15-year (`MORTGAGE15US`) rate series.
 │   └── [seed_demo_data.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/seed_demo_data.py)
-│       └── Populates the database with the Section 11 worked fixture ($400k loan), Mountain View purchase scenario, and 5 years of benchmark data.
+│       └── Populates the database with the Section 11 worked fixture ($400k loan), Mountain View purchase scenario, 5 years of FRED benchmarks, and RateAPI market snapshots.
 ├── static/
 │   ├── css/[styles.css](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/css/styles.css)
 │   │   └── Custom design system with glassmorphism, responsive grid layouts, and color tokens matching the specification.
@@ -34,14 +37,14 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 │       ├── [chart.umd.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chart.umd.min.js)
 │       │   └── Local vendor bundle rendering cumulative financing cost, payment composition, and loan balance curves.
 │       ├── [chartjs-plugin-zoom.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chartjs-plugin-zoom.min.js)
-│       │   └── Local vendor bundle powering interactive wheel zoom and pan on all charts.
+│       │   └── Local vendor bundle powering interactive wheel zoom and pan on FRED historical benchmark timeline.
 │       └── [hammer.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/hammer.min.js)
 │           └── Local vendor bundle for touch and pinch gesture detection.
 └── templates/
     ├── [base.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/base.html)
     │   └── Master HTML skeleton with navigation bar, responsive drawer, and methodology footer.
     ├── [compare.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/compare.html)
-    │   └── Option comparison matrix page with hold period dropdown.
+    │   └── Option comparison matrix page with hold period dropdown and Live Market Offers modal launcher.
     ├── [projected_costs.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/projected_costs.html)
     │   └── Interactive holding horizon slider, discount rate input, KPI summary cards, and 3 Chart.js graphs.
     ├── [scenario_form.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_form.html)
@@ -55,21 +58,23 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
     ├── [scenario_confirm_delete.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_confirm_delete.html)
     │   └── Confirmation modal for deleting an entire scenario.
     ├── [rate_watch.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/rate_watch.html)
-    │   └── Historical rate tracker displaying 52-week FRED benchmark trends.
+    │   └── Historical and live market intelligence page with 5-year FRED trends, RateAPI product yield curves, and credit union dispersion.
     ├── [learn.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/learn.html)
     │   └── Methodology reference on mortgage math, discount points, APR limitations, and MI formulas.
     └── partials/
         ├── [compare_matrix.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/partials/compare_matrix.html)
         │   └── Partial template rendering the side-by-side comparison table and recommendation banner.
-        └── [screening_result.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/partials/screening_result.html)
-            └── Partial template rendering HTMX-updated LTV, DTI, and program sanity badges.
+        ├── [screening_result.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/partials/screening_result.html)
+        │   └── Partial template rendering HTMX-updated LTV, DTI, and program sanity badges.
+        └── [rateapi_offers_modal.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/partials/rateapi_offers_modal.html)
+            └── Partial template rendering live market credit union quotes drawer with 1-click import.
 ```
 
 ---
 
 ## Architectural Conventions
 
-1. **Precomputed Chart Serialization**: Chart.js executes zero financial calculations in the browser. All financial series are precomputed on the server in [`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L65) and injected as ready-to-render JSON data.
+1. **Precomputed Chart Serialization**: Chart.js executes zero financial calculations in the browser. All financial series are precomputed on the server in [`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L78) and injected as ready-to-render JSON data.
 2. **Explicit Decimal Storage**: Rate percentages (e.g. `5.875%`) are stored in `LoanOptionModel.note_rate` with `max_digits=8, decimal_places=6` (`0.058750`) to avoid rounding distortions.
 
 ---
@@ -77,8 +82,8 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 ## Running Web Tests
 
 ```bash
-# Run web model and view integration tests
-.venv/bin/pytest tests/unit/test_models.py tests/unit/test_services.py tests/unit/test_views.py tests/unit/test_options_views.py -v
+# Run web unit and view integration tests
+.venv/bin/pytest tests/unit/test_models.py tests/unit/test_services.py tests/unit/test_views.py tests/unit/test_options_views.py tests/unit/test_rate_watch_view.py tests/unit/test_rateapi_views.py tests/unit/test_rateapi_adapter.py tests/unit/test_rateapi_market_rates.py -v
 
 # Run Selenium E2E interaction tests
 .venv/bin/pytest tests/e2e/ -v

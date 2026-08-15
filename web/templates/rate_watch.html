@@ -1,19 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Rate Watch — Mortgage Compass{% endblock %}
+{% block title %}Rate Watch & Market Intelligence — Mortgage Compass{% endblock %}
 
 {% block content %}
-<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px;">
   <div>
-    <h1 class="page-title">Rate Watch & Market Benchmarks</h1>
-    <p class="page-subtitle">National benchmark mortgage trends from the Federal Reserve Economic Data (FRED).</p>
+    <h1 class="page-title">Rate Watch & Market Intelligence</h1>
+    <p class="page-subtitle">National macro benchmark trends (FRED) paired with real-time credit union market observations (RateAPI.dev).</p>
   </div>
-  <div style="font-size: 0.85rem; color: var(--text-muted);">
-    {% if last_refresh %}
-      Last successful refresh: {{ last_refresh|date:"M j, Y H:i" }} UTC
-    {% else %}
-      No benchmark data loaded yet
-    {% endif %}
+  <div style="display: flex; align-items: center; gap: 12px; font-size: 0.85rem;">
+    <a href="?refresh=1" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px; text-decoration: none;">
+      <span>🔄</span>
+      <span>Refresh Live Market Rates</span>
+    </a>
+    <div style="color: var(--text-muted);">
+      {% if last_refresh %}
+        Updated: {{ last_refresh|date:"M j, Y H:i" }} UTC
+      {% else %}
+        No benchmark data loaded yet
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -25,37 +31,64 @@
       </svg>
     </span>
     <span style="font-size: 0.9rem; color: #92400e; font-weight: 500;">
-      Benchmark data may be stale (last refresh was over 14 days ago). Run <code>python manage.py fetch_fred_benchmarks</code> to update.
+      Benchmark data may be stale. Click "Refresh Live Market Rates" or run <code>python manage.py fetch_fred_benchmarks</code> to update.
     </span>
   </div>
 {% endif %}
 
-<div class="kpi-grid">
+<!-- KPI Cards Grid -->
+<div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
   <div class="kpi-card">
-    <div class="kpi-title">30-Year Fixed Average (FRED)</div>
+    <div class="kpi-title">FRED 30Y National Average</div>
     <div class="kpi-value" style="color: #0f766e;">
       {% if latest_30 %}{{ latest_30.value }}%{% else %}—{% endif %}
     </div>
     <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
-      {% if latest_30 %}As of {{ latest_30.observed_on|date:"M j, Y" }}{% endif %}
+      {% if latest_30 %}Observed {{ latest_30.observed_on|date:"M j, Y" }}{% endif %}
     </div>
   </div>
 
   <div class="kpi-card">
-    <div class="kpi-title">15-Year Fixed Average (FRED)</div>
+    <div class="kpi-title">FRED 15Y National Average</div>
     <div class="kpi-value" style="color: #0284c7;">
       {% if latest_15 %}{{ latest_15.value }}%{% else %}—{% endif %}
     </div>
     <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
-      {% if latest_15 %}As of {{ latest_15.observed_on|date:"M j, Y" }}{% endif %}
+      {% if latest_15 %}Observed {{ latest_15.observed_on|date:"M j, Y" }}{% endif %}
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Credit Union Spread vs FRED 30Y</div>
+    <div class="kpi-value" style="color: {% if macro_spread.spread_bps < 0 %}#0d9488{% else %}#ea580c{% endif %}; font-size: 1.6rem;">
+      {{ macro_spread.spread_bps }} bps
+      <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">
+        ({{ macro_spread.top_cu_30y }}% vs {{ macro_spread.fred_30y }}%)
+      </span>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+      Top market quote: {{ macro_spread.cu_name }}
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">RateAPI Monthly Quota Guard</div>
+    <div class="kpi-value" style="color: #64748b; font-size: 1.5rem;">
+      {{ budget.call_count }} / {{ budget.safety_threshold }}
+      <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">calls</span>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+      Hard limit: {{ budget.monthly_limit }}/mo (24h cached)
     </div>
   </div>
 </div>
 
-<div class="chart-card">
+<!-- Primary Historical Chart (FRED 5-Year) -->
+<div class="chart-card" style="margin-bottom: 24px;">
   <div class="chart-header">
     <div>
-      <h3 class="chart-title">Historical Benchmark Trend (FRED Weekly)</h3>
+      <h3 class="chart-title">5-Year Historical Macro Trends (FRED Weekly Survey)</h3>
+      <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Freddie Mac Primary Mortgage Market Survey 30-Year vs. 15-Year Fixed</p>
     </div>
     <div class="chart-toolbar">
       <span class="chart-hint">Scroll / drag to zoom & pan</span>
@@ -68,18 +101,48 @@
       </button>
     </div>
   </div>
-  <div class="chart-canvas-wrapper" style="height: 350px;">
+  <div class="chart-canvas-wrapper" style="height: 340px;">
     <canvas id="fredChart"></canvas>
   </div>
 </div>
 
+<!-- Two Column Row for RateAPI Live Market Intelligence -->
+<div class="two-charts-row" style="margin-bottom: 24px;">
+  <!-- Chart 2: Product Term Structure & Yield Curve -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <h3 class="chart-title">Product Term Structure & Yield Curve</h3>
+        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Average Note Rate & APR across Fixed & Adjustable Loan Products (RateAPI.dev)</p>
+      </div>
+    </div>
+    <div class="chart-canvas-wrapper" style="height: 340px;">
+      <canvas id="productCurveChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 3: Credit Union Rate & APR Dispersion -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <h3 class="chart-title">Live Credit Union Rate & APR Dispersion</h3>
+        <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Current institutional rate quotes in market (RateAPI.dev)</p>
+      </div>
+    </div>
+    <div class="chart-canvas-wrapper" style="height: 340px;">
+      <canvas id="dispersionChart"></canvas>
+    </div>
+  </div>
+</div>
+
 <div class="disclaimer-text">
-  Benchmark data is sourced for market context only and is not used in your loan comparison calculations.
+  Benchmark and market rate data are sourced for informational context only and do not constitute loan offers or commitments to lend.
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+  // 1. Primary Historical FRED Chart
   const dates = {{ chart_dates_json|safe }};
   const rate30 = {{ chart_30_json|safe }};
   const rate15 = {{ chart_15_json|safe }};
@@ -124,21 +187,8 @@
             }
           },
           zoom: {
-            pan: {
-              enabled: true,
-              mode: 'x',
-              threshold: 5
-            },
-            zoom: {
-              wheel: {
-                enabled: true,
-                speed: 0.08
-              },
-              pinch: {
-                enabled: true
-              },
-              mode: 'x'
-            }
+            pan: { enabled: true, mode: 'x', threshold: 5 },
+            zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, mode: 'x' }
           }
         },
         scales: {
@@ -149,6 +199,117 @@
           x: {
             grid: { display: false },
             ticks: { maxTicksLimit: 12 }
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Product Term Structure & Yield Curve Chart
+  const productData = {{ product_chart_json|safe }};
+  if (productData && productData.labels && productData.labels.length > 0) {
+    const ctxProd = document.getElementById('productCurveChart').getContext('2d');
+    window.productCurveChart = new Chart(ctxProd, {
+      type: 'bar',
+      data: {
+        labels: productData.labels,
+        datasets: [
+          {
+            label: 'Avg Note Rate (%)',
+            data: productData.rates,
+            backgroundColor: '#0d9488',
+            borderRadius: 4,
+          },
+          {
+            label: 'Avg APR (%)',
+            data: productData.aprs,
+            backgroundColor: '#6366f1',
+            borderRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'end' },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}%`
+            }
+          },
+          zoom: false
+        },
+        scales: {
+          y: {
+            ticks: { callback: v => v.toFixed(2) + '%' },
+            grid: { color: '#f1f5f9' },
+            beginAtZero: false,
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // 3. Live Credit Union Rate Dispersion Horizontal Bar Chart
+  const dispersionData = {{ dispersion_chart_json|safe }};
+  if (dispersionData && dispersionData.labels && dispersionData.labels.length > 0) {
+    const ctxDisp = document.getElementById('dispersionChart').getContext('2d');
+    window.dispersionChart = new Chart(ctxDisp, {
+      type: 'bar',
+      data: {
+        labels: dispersionData.labels,
+        datasets: [
+          {
+            label: 'Note Rate (%)',
+            data: dispersionData.rates,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4,
+          },
+          {
+            label: 'APR (%)',
+            data: dispersionData.aprs,
+            backgroundColor: '#8b5cf6',
+            borderRadius: 4,
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: { left: 4, right: 14, top: 4, bottom: 4 }
+        },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'end' },
+          tooltip: {
+            callbacks: {
+              title: function(items) {
+                const idx = items[0].dataIndex;
+                return dispersionData.full_names ? dispersionData.full_names[idx] : items[0].label;
+              },
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x.toFixed(3)}%`
+            }
+          },
+          zoom: false
+        },
+        scales: {
+          x: {
+            ticks: { callback: v => v.toFixed(2) + '%' },
+            grid: { color: '#f1f5f9' },
+            beginAtZero: false,
+          },
+          y: {
+            grid: { display: false },
+            ticks: {
+              autoSkip: false,
+              padding: 6,
+              font: { size: 11, family: "'Inter', system-ui, sans-serif" }
+            }
           }
         }
       }

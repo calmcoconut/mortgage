@@ -1,0 +1,144 @@
+<div class="modal-backdrop" id="rateapi-modal-backdrop" onclick="if(event.target === this) document.getElementById('rateapi-modal-container').innerHTML = '';">
+  <div class="rateapi-modal card">
+    <div class="modal-header">
+      <div>
+        <h2 style="margin:0; font-size:1.4rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>🏛️</span> Live Market Offers
+          <span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; font-size:0.75rem; border:1px solid rgba(59,130,246,0.3);">Powered by RateAPI.dev</span>
+        </h2>
+        <p style="margin:0.25rem 0 0 0; color:var(--text-muted); font-size:0.85rem;">
+          Real-time ranked credit union & lender rates for <strong>{{ scenario.state }} • ${{ scenario.loan_amount|floatformat:0 }} • {{ scenario.term_months|divisibleby:12|yesno:"30-Year,15-Year" }}</strong>
+        </p>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rateapi-modal-container').innerHTML = '';" style="padding:0.4rem 0.8rem;">✕ Close</button>
+    </div>
+
+    <!-- Status & Budget Bar -->
+    <div class="rateapi-status-bar" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.2); padding:0.6rem 1rem; border-radius:8px; margin:1rem 0; gap:0.5rem; font-size:0.85rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        {% if from_cache %}
+          <span class="badge" style="background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3);">
+            ⚡ Cached ({{ cached_at|date:"M j, H:i" }})
+          </span>
+        {% else %}
+          <span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">
+            🟢 Fresh Live Data
+          </span>
+        {% endif %}
+
+        {% if warning %}
+          <span style="color:#fbbf24;">⚠️ {{ warning }}</span>
+        {% endif %}
+      </div>
+
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="color:var(--text-muted);">Monthly Budget:</span>
+        <span class="badge" style="{% if budget.call_count >= budget.safety_threshold %}background:rgba(239,68,68,0.2); color:#f87171; border:1px solid rgba(239,68,68,0.4);{% elif budget.call_count >= 12 %}background:rgba(245,158,11,0.2); color:#fbbf24; border:1px solid rgba(245,158,11,0.4);{% else %}background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3);{% endif %} font-weight:600;">
+          Budget: {{ budget.call_count }} / {{ budget.safety_threshold }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Offers List -->
+    <div class="rateapi-offers-list" style="display:flex; flex-direction:column; gap:1rem; max-height:55vh; overflow-y:auto; padding-right:0.25rem;">
+      {% if offers %}
+        {% for offer in offers %}
+          <div class="offer-card" style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:10px; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:0.75rem; transition:border-color 0.2s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+              <div>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                  <span class="badge" style="background:var(--accent-glow); color:var(--accent); font-weight:bold;">#{{ offer.rank|default:forloop.counter }}</span>
+                  <strong style="font-size:1.05rem; color:var(--text-primary);">{{ offer.credit_union_name }}</strong>
+                  {% if offer.product_name %}
+                    <span style="color:var(--text-muted); font-size:0.8rem;">({{ offer.product_name }})</span>
+                  {% endif %}
+                </div>
+                {% if offer.eligibility.requirements_summary %}
+                  <div style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.4rem;">
+                    <span>📍</span> {{ offer.eligibility.requirements_summary }}
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Badges -->
+              <div style="display:flex; gap:0.4rem; align-items:center;">
+                {% if offer.confidence_category == "high" %}
+                  <span class="badge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:0.75rem; border:1px solid rgba(16,185,129,0.3);">
+                    ✓ High Confidence
+                  </span>
+                {% elif offer.confidence_category == "warning" %}
+                  <span class="badge" style="background:rgba(245,158,11,0.15); color:#fbbf24; font-size:0.75rem; border:1px solid rgba(245,158,11,0.3);">
+                    ⚠️ Low Confidence
+                  </span>
+                {% endif %}
+
+                {% if offer.eligibility.status == "likely_eligible" %}
+                  <span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; font-size:0.75rem;">
+                    Eligible Match
+                  </span>
+                {% elif offer.eligibility.status == "geo_mismatch" %}
+                  <span class="badge" style="background:rgba(239,68,68,0.15); color:#f87171; font-size:0.75rem;">
+                    Geo Mismatch
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Financial Metrics Grid -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; background:rgba(0,0,0,0.15); padding:0.75rem 1rem; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+              <div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Note Rate</div>
+                <div style="font-size:1.1rem; font-weight:700; color:var(--accent);">{{ offer.rate }}%</div>
+              </div>
+              <div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">APR</div>
+                <div style="font-size:1.1rem; font-weight:600; color:var(--text-primary);">{{ offer.apr }}%</div>
+              </div>
+              <div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Points</div>
+                <div style="font-size:1.1rem; font-weight:600; color:var(--text-primary);">{{ offer.points }} pts</div>
+              </div>
+              <div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Est. Monthly P&I</div>
+                <div style="font-size:1.1rem; font-weight:600; color:var(--text-primary);">${{ offer.monthly_payment|floatformat:2 }}</div>
+              </div>
+            </div>
+
+            <!-- Action Button Form -->
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; align-items:center;">
+              {% if offer.credit_union_url %}
+                <a href="{{ offer.credit_union_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="font-size:0.8rem; text-decoration:none;">
+                  Lender Site ↗
+                </a>
+              {% endif %}
+
+              <form method="post" action="{% url 'web:scenario_import_rateapi_offer' scenario.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="label" value="{{ offer.credit_union_name }} - {{ offer.display_name|default:'Market Offer' }}">
+                <input type="hidden" name="institution_name" value="{{ offer.credit_union_name }}">
+                <input type="hidden" name="note_rate" value="{{ offer.rate }}">
+                <input type="hidden" name="apr" value="{{ offer.apr }}">
+                <input type="hidden" name="points_pct" value="{{ offer.points }}">
+                <input type="hidden" name="loan_amount" value="{{ scenario.loan_amount }}">
+                <input type="hidden" name="term_months" value="{{ scenario.term_months }}">
+                <input type="hidden" name="confidence_score" value="{{ offer.confidence_score|default:'0.85' }}">
+                <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600;">
+                  + Import to Comparison
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center; padding:2rem; color:var(--text-muted);">
+          <p>No qualifying live offers found for this scenario's state and loan amount.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Footer Disclosures -->
+    <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color); font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+      RateAPI.dev quotes are for informational comparison purposes only. Credit union membership may be required. Imported options can be fully customized in your comparison matrix.
+    </div>
+  </div>
+</div>

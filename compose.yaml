@@ -10,5 +10,6 @@ services:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production-random-secret-key}
       - DATABASE_PATH=/data/db.sqlite3
       - FRED_API_KEY=${FRED_API_KEY:-}
+      - RATEAPI_KEY=${RATEAPI_KEY:-}
     volumes:
       - ./data:/data

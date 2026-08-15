@@ -4,7 +4,12 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from web.models import BenchmarkPointModel, LoanOptionModel, ScenarioModel
+from web.models import (
+    BenchmarkPointModel,
+    LoanOptionModel,
+    RateApiSnapshotModel,
+    ScenarioModel,
+)
 
 
 class Command(BaseCommand):
@@ -157,6 +162,36 @@ class Command(BaseCommand):
                 defaults={"value": val15, "fetched_at": now},
             )
 
+        # 4. Seed durable RateAPI credit union market rate snapshots
+        cu_snapshots = [
+            ("Safe 1 Credit Union", "30-year-fixed", "30-Year Fixed Rate", "6.000", "6.000", "0.000", "Community charter in CA"),
+            ("Sacramento Credit Union", "15-year-fixed", "15-Year Fixed", "5.375", "5.375", "0.000", "Community charter: Sacramento, Placer"),
+            ("Coast Central Credit Union", "5-1-arm", "5/1 ARM Conforming", "5.125", "5.250", "0.000", "Community charter in CA"),
+            ("Coast Central Credit Union", "7-1-arm", "7/1 ARM Conforming", "5.375", "5.450", "0.000", "Community charter in CA"),
+            ("Northeast Community CU", "30-year-fixed", "30 Year Fixed - Conforming", "6.125", "6.283", "0.000", "Community charter in CA"),
+            ("United Local Credit Union", "10-year-fixed", "10-Year Fixed Conforming", "5.250", "5.300", "0.000", "Local union affiliation"),
+            ("F & A Credit Union", "30-year-fixed", "30-Year Fixed Rate", "6.375", "6.375", "0.000", "Employer / community charter"),
+            ("Ume Credit Union", "5-1-arm", "5/1 ARM", "5.375", "5.375", "0.000", "Community charter: Burbank"),
+        ]
+
+        for lender, p_type, p_name, r, a, pts, elig in cu_snapshots:
+            RateApiSnapshotModel.objects.update_or_create(
+                lender=lender,
+                product_type=p_type,
+                state="CA",
+                observed_on=base_date,
+                defaults={
+                    "product_name": p_name,
+                    "loan_program": "conventional",
+                    "rate": Decimal(r),
+                    "apr": Decimal(a),
+                    "points": Decimal(pts),
+                    "fetched_at": now,
+                    "eligibility_summary": elig,
+                    "confidence_score": Decimal("0.900"),
+                },
+            )
+
         self.stdout.write(
-            self.style.SUCCESS("Successfully seeded demo scenarios and 5 years of benchmark data!")
+            self.style.SUCCESS("Successfully seeded demo scenarios, 5 years of FRED benchmarks, and RateAPI market snapshots!")
         )
