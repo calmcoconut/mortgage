@@ -1,8 +1,10 @@
 from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+
 import pytest
 from django.core.management import call_command
+
 from web.models import BenchmarkPointModel
 
 
@@ -23,7 +25,9 @@ def test_fetch_fred_benchmarks_success():
 
     assert BenchmarkPointModel.objects.filter(series="MORTGAGE30US").count() == 2
     assert BenchmarkPointModel.objects.filter(series="MORTGAGE15US").count() == 2
-    pt = BenchmarkPointModel.objects.get(series="MORTGAGE30US", observed_on=date(2026, 8, 8))
+    pt = BenchmarkPointModel.objects.get(
+        series="MORTGAGE30US", observed_on=date(2026, 8, 8)
+    )
     assert pt.value == Decimal("6.48")
 
 
@@ -32,4 +36,8 @@ def test_fetch_fred_benchmarks_no_key_warning(capsys):
     # Should not crash if no API key is provided
     call_command("fetch_fred_benchmarks", api_key="")
     captured = capsys.readouterr()
-    assert "No FRED_API_KEY" in captured.out or "No FRED_API_KEY" in captured.err or BenchmarkPointModel.objects.count() == 0
+    assert (
+        "No FRED_API_KEY" in captured.out
+        or "No FRED_API_KEY" in captured.err
+        or BenchmarkPointModel.objects.count() == 0
+    )

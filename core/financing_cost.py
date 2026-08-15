@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Sequence
 from uuid import UUID
+
 from core.amortization import calculate_amortization, calculate_monthly_pi
 from core.models import (
     BreakEvenResult,
@@ -9,7 +10,6 @@ from core.models import (
     OptionResult,
     ScenarioInput,
 )
-from core.money import money
 
 
 def calculate_net_upfront(option: LoanOptionInput) -> Decimal:
@@ -31,7 +31,9 @@ def calculate_option_result(
         term_months=option.term_months,
         monthly_mi=monthly_mi,
     )
-    monthly_pi = calculate_monthly_pi(option.loan_amount, option.note_rate, option.term_months)
+    monthly_pi = calculate_monthly_pi(
+        option.loan_amount, option.note_rate, option.term_months
+    )
     net_upfront = calculate_net_upfront(option)
 
     # Cumulative financing costs by month (month 0 is net_upfront)
@@ -74,13 +76,18 @@ def calculate_break_even(
     res_candidate = calculate_option_result(candidate, horizon_months)
     res_baseline = calculate_option_result(baseline, horizon_months)
 
-    savings_at_horizon = res_baseline.financing_cost_at_horizon - res_candidate.financing_cost_at_horizon
+    savings_at_horizon = (
+        res_baseline.financing_cost_at_horizon - res_candidate.financing_cost_at_horizon
+    )
 
     max_months = min(candidate.term_months, baseline.term_months)
     break_even_month: int | None = None
 
     for m in range(1, max_months + 1):
-        if res_candidate.financing_cost_by_month[m] < res_baseline.financing_cost_by_month[m]:
+        if (
+            res_candidate.financing_cost_by_month[m]
+            < res_baseline.financing_cost_by_month[m]
+        ):
             break_even_month = m
             break
 
@@ -117,7 +124,9 @@ def calculate_break_even(
                 discounted_break_even_month = m
 
         clamped_h = min(horizon_months, max_months)
-        discounted_savings = base_disc_outflows[clamped_h] - cand_disc_outflows[clamped_h]
+        discounted_savings = (
+            base_disc_outflows[clamped_h] - cand_disc_outflows[clamped_h]
+        )
 
     return BreakEvenResult(
         candidate_id=candidate.option_id,
@@ -136,7 +145,11 @@ def compare_options(
     discount_rate: Decimal | None = None,
 ) -> ComparisonResult:
     """Compare multiple loan options for a given scenario at target horizon."""
-    target_horizon = horizon_months if horizon_months is not None else scenario.expected_horizon_months
+    target_horizon = (
+        horizon_months
+        if horizon_months is not None
+        else scenario.expected_horizon_months
+    )
     results = [calculate_option_result(opt, target_horizon) for opt in options]
 
     recommended_id: UUID | None = None

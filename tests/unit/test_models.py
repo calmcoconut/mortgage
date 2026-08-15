@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
+
 import pytest
 from django.utils import timezone
+
 from web.models import BenchmarkPointModel, LoanOptionModel, ScenarioModel
 
 

@@ -1,5 +1,5 @@
 from decimal import Decimal
-import pytest
+
 from core.mi_fees import (
     conventional_pmi_monthly,
     fha_mip,
@@ -11,7 +11,9 @@ from core.money import money
 
 def test_conventional_pmi_monthly():
     # <= 80% LTV -> $0 PMI
-    assert conventional_pmi_monthly(Decimal("400000"), Decimal("0.80"), "760+") == Decimal("0.00")
+    assert conventional_pmi_monthly(
+        Decimal("400000"), Decimal("0.80"), "760+"
+    ) == Decimal("0.00")
 
     # 95% LTV, 760+ -> ~0.38%/yr = $126.67/mo
     pmi = conventional_pmi_monthly(Decimal("400000"), Decimal("0.95"), "760+")

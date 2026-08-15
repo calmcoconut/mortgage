@@ -1,9 +1,11 @@
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+
 import requests
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from web.models import BenchmarkPointModel
 
 FRED_SERIES = ["MORTGAGE30US", "MORTGAGE15US"]
@@ -19,7 +21,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         api_key = options["api_key"] or getattr(settings, "FRED_API_KEY", "")
         if not api_key:
-            self.stdout.write(self.style.WARNING("No FRED_API_KEY provided in environment or argument. Skipping fetch."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "No FRED_API_KEY provided in environment or argument. Skipping fetch."
+                )
+            )
             return
 
         now = timezone.now()
@@ -36,7 +42,11 @@ class Command(BaseCommand):
             try:
                 resp = requests.get(FRED_API_URL, params=params, timeout=10)
                 if resp.status_code != 200:
-                    self.stderr.write(self.style.ERROR(f"FRED API error for {series}: HTTP {resp.status_code}"))
+                    self.stderr.write(
+                        self.style.ERROR(
+                            f"FRED API error for {series}: HTTP {resp.status_code}"
+                        )
+                    )
                     continue
 
                 data = resp.json()
@@ -67,4 +77,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stderr.write(self.style.ERROR(f"Failed to fetch {series}: {e}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully processed {total_upserted} benchmark rate observations."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Successfully processed {total_upserted} benchmark rate observations."
+            )
+        )

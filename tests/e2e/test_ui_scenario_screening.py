@@ -1,5 +1,5 @@
 import time
-import pytest
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -63,7 +63,11 @@ class TestScenarioScreeningE2E(StaticLiveServerTestCase):
         time.sleep(0.6)
 
         # Wait for HTMX reactive preview to update with LTV: 80.0%
-        wait.until(lambda d: "80.0%" in d.find_element(By.ID, "screening-preview-container").text)
+        wait.until(
+            lambda d: (
+                "80.0%" in d.find_element(By.ID, "screening-preview-container").text
+            )
+        )
         container = self.driver.find_element(By.ID, "screening-preview-container")
         self.assertIn("LIKELY", container.text)
 
@@ -73,15 +77,23 @@ class TestScenarioScreeningE2E(StaticLiveServerTestCase):
         self.driver.execute_script("htmx.trigger('#id_loan_amount', 'input');")
         time.sleep(0.6)
 
-        wait.until(lambda d: "UNLIKELY" in d.find_element(By.ID, "screening-preview-container").text)
+        wait.until(
+            lambda d: (
+                "UNLIKELY" in d.find_element(By.ID, "screening-preview-container").text
+            )
+        )
 
         # Change back to 400000 and submit
         loan_amt.clear()
         loan_amt.send_keys("400000")
-        
+
         submit_btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        self.driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click();", submit_btn)
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView(true); arguments[0].click();", submit_btn
+        )
 
         wait.until(EC.url_contains("/compare/"))
-        header = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "page-title")))
+        header = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "page-title"))
+        )
         self.assertIn("Compare", header.text)

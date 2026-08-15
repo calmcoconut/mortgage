@@ -1,6 +1,7 @@
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
+
 from core.financing_cost import compare_options
 from core.models import (
     ComparisonResult,
@@ -93,32 +94,46 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
             cost_series.extend([cost_series[-1]] * (len(months) - cost_series))
 
         # Precomputed remaining loan balance (month 0 is initial loan amount, then row balances)
-        balance_series = [float(round(opt.amortization[0].principal + opt.amortization[0].balance, 2)) if opt.amortization else 0.0]
+        balance_series = [
+            float(round(opt.amortization[0].principal + opt.amortization[0].balance, 2))
+            if opt.amortization
+            else 0.0
+        ]
         for row in opt.amortization:
             balance_series.append(float(round(row.balance, 2)))
         if len(balance_series) < len(months):
             balance_series.extend([0.0] * (len(months) - len(balance_series)))
 
         # Precomputed payment composition breakdown
-        principal_by_month = [0.0] + [float(round(r.principal, 2)) for r in opt.amortization]
-        interest_by_month = [0.0] + [float(round(r.interest, 2)) for r in opt.amortization]
-        mi_by_month = [0.0] + [float(round(r.mortgage_insurance, 2)) for r in opt.amortization]
+        principal_by_month = [0.0] + [
+            float(round(r.principal, 2)) for r in opt.amortization
+        ]
+        interest_by_month = [0.0] + [
+            float(round(r.interest, 2)) for r in opt.amortization
+        ]
+        mi_by_month = [0.0] + [
+            float(round(r.mortgage_insurance, 2)) for r in opt.amortization
+        ]
 
-        series.append({
-            "option_id": str(opt.option_id),
-            "label": opt.label,
-            "source_type": str(opt.source_type),
-            "monthly_pi": float(round(opt.monthly_pi, 2)),
-            "financing_cost": cost_series,
-            "balance": balance_series,
-            "principal": principal_by_month,
-            "interest": interest_by_month,
-            "mi": mi_by_month,
-        })
+        series.append(
+            {
+                "option_id": str(opt.option_id),
+                "label": opt.label,
+                "source_type": str(opt.source_type),
+                "monthly_pi": float(round(opt.monthly_pi, 2)),
+                "financing_cost": cost_series,
+                "balance": balance_series,
+                "principal": principal_by_month,
+                "interest": interest_by_month,
+                "mi": mi_by_month,
+            }
+        )
 
     return {
         "months": months,
         "series": series,
-        "break_even_month": comparison.break_even.break_even_month if comparison.break_even else None,
+        "break_even_month": comparison.break_even.break_even_month
+        if comparison.break_even
+        else None,
         "horizon_months": comparison.horizon_months,
     }

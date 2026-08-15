@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from core.money import money
 
 
@@ -42,7 +43,9 @@ def fha_mip(
     Returns (upfront_mip, monthly_mip).
     """
     upfront = money(loan_amount * Decimal("0.0175"))  # 1.75% upfront
-    annual_rate = Decimal("0.0055") if ltv > Decimal("0.95") else Decimal("0.0050")  # 55bps or 50bps
+    annual_rate = (
+        Decimal("0.0055") if ltv > Decimal("0.95") else Decimal("0.0050")
+    )  # 55bps or 50bps
     monthly = money((loan_amount * annual_rate) / Decimal("12"))
     return upfront, monthly
 
@@ -60,7 +63,9 @@ def va_funding_fee(
     elif down_pct >= Decimal("0.05"):
         fee_rate = Decimal("0.0150")  # 1.50%
     else:
-        fee_rate = Decimal("0.0330") if prior_use else Decimal("0.0215")  # 3.30% vs 2.15%
+        fee_rate = (
+            Decimal("0.0330") if prior_use else Decimal("0.0215")
+        )  # 3.30% vs 2.15%
 
     return money(loan_amount * fee_rate)
 

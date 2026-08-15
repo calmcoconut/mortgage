@@ -1,11 +1,12 @@
 from decimal import Decimal
-import pytest
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
+
 from web.models import ScenarioModel
 
 
@@ -42,7 +43,9 @@ class TestOptionCrudE2E(StaticLiveServerTestCase):
         self.driver.get(f"{self.live_server_url}/scenarios/{self.scenario.id}/compare/")
 
         # 1. Click Add Loan Option
-        add_btn = wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Add Loan Option")))
+        add_btn = wait.until(
+            EC.element_to_be_clickable((By.LINK_TEXT, "Add Loan Option"))
+        )
         add_btn.click()
 
         wait.until(EC.url_contains("/options/new/"))
@@ -69,11 +72,15 @@ class TestOptionCrudE2E(StaticLiveServerTestCase):
 
         # Submit form
         save_btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        self.driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click();", save_btn)
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView(true); arguments[0].click();", save_btn
+        )
 
         # 3. Assert redirected back to Compare and option column exists
         wait.until(EC.url_contains("/compare/"))
-        matrix = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table")))
+        matrix = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table"))
+        )
         self.assertIn("Transcribed LE: 5.75% / 1 pt", matrix.text)
         self.assertIn("5.750%", matrix.text)
 
@@ -82,16 +89,24 @@ class TestOptionCrudE2E(StaticLiveServerTestCase):
         edit_btn.click()
 
         wait.until(EC.url_contains("/edit/"))
-        rate_input = wait.until(EC.presence_of_element_located((By.NAME, "rate_percent")))
+        rate_input = wait.until(
+            EC.presence_of_element_located((By.NAME, "rate_percent"))
+        )
         rate_input.clear()
         rate_input.send_keys("5.500")
 
-        save_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']")))
-        self.driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click();", save_btn)
+        save_btn = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
+        )
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView(true); arguments[0].click();", save_btn
+        )
 
         # Assert updated rate in table
         wait.until(EC.url_contains("/compare/"))
-        matrix = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table")))
+        matrix = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table"))
+        )
         self.assertIn("5.500%", matrix.text)
 
         # 5. Delete Option
@@ -99,10 +114,14 @@ class TestOptionCrudE2E(StaticLiveServerTestCase):
         del_btn.click()
 
         wait.until(EC.url_contains("/delete/"))
-        confirm_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.btn-danger")))
+        confirm_btn = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.btn-danger"))
+        )
         confirm_btn.click()
 
         # Assert option removed
         wait.until(EC.url_contains("/compare/"))
-        matrix = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table")))
+        matrix = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "matrix-table"))
+        )
         self.assertNotIn("Transcribed LE: 5.75% / 1 pt", matrix.text)

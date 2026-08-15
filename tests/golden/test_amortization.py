@@ -1,5 +1,5 @@
 from decimal import Decimal
-import pytest
+
 from core.amortization import calculate_amortization, calculate_monthly_pi
 from core.money import money
 

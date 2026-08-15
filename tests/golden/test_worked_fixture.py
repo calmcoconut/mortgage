@@ -1,8 +1,12 @@
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
-import pytest
-from core.financing_cost import calculate_break_even, calculate_option_result, compare_options
+
+from core.financing_cost import (
+    calculate_break_even,
+    calculate_option_result,
+    compare_options,
+)
 from core.models import LoanOptionInput, ScenarioInput, SourceType
 from core.money import money
 
@@ -78,19 +82,26 @@ def test_worked_fixture_section_11():
     # Financing cost at 5 years (60 months)
     assert money(result_a_5yr.financing_cost_at_horizon) == Decimal("126140.24")
     assert money(result_b_5yr.financing_cost_at_horizon) == Decimal("124109.55")
-    diff_5yr = result_a_5yr.financing_cost_at_horizon - result_b_5yr.financing_cost_at_horizon
+    diff_5yr = (
+        result_a_5yr.financing_cost_at_horizon - result_b_5yr.financing_cost_at_horizon
+    )
     assert money(diff_5yr) == Decimal("2030.68")
 
     # Financing cost at 7 years (84 months)
     assert money(result_a_7yr.financing_cost_at_horizon) == Decimal("174039.84")
     assert money(result_b_7yr.financing_cost_at_horizon) == Decimal("168006.52")
-    diff_7yr = result_a_7yr.financing_cost_at_horizon - result_b_7yr.financing_cost_at_horizon
+    diff_7yr = (
+        result_a_7yr.financing_cost_at_horizon - result_b_7yr.financing_cost_at_horizon
+    )
     assert money(diff_7yr) == Decimal("6033.32")
 
     # Financing cost at 30 years (360 months)
     assert money(result_a_30yr.financing_cost_at_horizon) == Decimal("510177.95")
     assert money(result_b_30yr.financing_cost_at_horizon) == Decimal("471352.76")
-    diff_30yr = result_a_30yr.financing_cost_at_horizon - result_b_30yr.financing_cost_at_horizon
+    diff_30yr = (
+        result_a_30yr.financing_cost_at_horizon
+        - result_b_30yr.financing_cost_at_horizon
+    )
     assert money(diff_30yr) == Decimal("38825.20")
 
     # Break-even calculation: Option B is cheaper after month 48

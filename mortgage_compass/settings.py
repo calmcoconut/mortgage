@@ -3,7 +3,9 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-mortgage-compass-secure-local-2026")
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY", "dev-secret-key-mortgage-compass-secure-local-2026"
+)
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = ["*"]
 

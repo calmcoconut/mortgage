@@ -2,6 +2,7 @@
 import os
 import sys
 
+
 def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mortgage_compass.settings")
     try:
@@ -12,6 +13,7 @@ def main():
             "available on your PYTHONPATH environment variable?"
         ) from exc
     execute_from_command_line(sys.argv)
+
 
 if __name__ == "__main__":
     main()

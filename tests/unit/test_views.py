@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
+
 import pytest
 from django.urls import reverse
+
 from web.models import LoanOptionModel, ScenarioModel
 
 
@@ -72,7 +74,9 @@ def test_scenario_compare_view(client, sample_scenario):
 
 @pytest.mark.django_db
 def test_scenario_projected_costs_view(client, sample_scenario):
-    url = reverse("web:scenario_projected_costs", kwargs={"scenario_id": sample_scenario.id})
+    url = reverse(
+        "web:scenario_projected_costs", kwargs={"scenario_id": sample_scenario.id}
+    )
     resp = client.get(url, {"horizon": "84"})
     assert resp.status_code == 200
     content = resp.content.decode()
@@ -83,14 +87,17 @@ def test_scenario_projected_costs_view(client, sample_scenario):
 @pytest.mark.django_db
 def test_scenario_screening_preview_htmx(client):
     url = reverse("web:scenario_screen_preview")
-    resp = client.post(url, {
-        "property_value": "500000",
-        "loan_amount": "400000",
-        "gross_monthly_income": "10000",
-        "recurring_monthly_debts": "500",
-        "fico_band": "760+",
-        "program": "conventional",
-    })
+    resp = client.post(
+        url,
+        {
+            "property_value": "500000",
+            "loan_amount": "400000",
+            "gross_monthly_income": "10000",
+            "recurring_monthly_debts": "500",
+            "fico_band": "760+",
+            "program": "conventional",
+        },
+    )
     assert resp.status_code == 200
     content = resp.content.decode()
     assert "conventional" in content.lower()

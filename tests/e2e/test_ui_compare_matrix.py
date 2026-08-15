@@ -1,12 +1,13 @@
 from datetime import date
 from decimal import Decimal
-import pytest
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
+
 from web.models import LoanOptionModel, ScenarioModel
 
 
@@ -71,10 +72,14 @@ class TestCompareMatrixE2E(StaticLiveServerTestCase):
     def test_compare_matrix_and_horizon_switch(self):
         wait = WebDriverWait(self.driver, 10)
         # Open compare page at 7-year horizon
-        self.driver.get(f"{self.live_server_url}/scenarios/{self.scenario.id}/compare/?horizon=84")
+        self.driver.get(
+            f"{self.live_server_url}/scenarios/{self.scenario.id}/compare/?horizon=84"
+        )
 
         # 1. Assert Recommendation Banner
-        rec_banner = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner")))
+        rec_banner = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner"))
+        )
         self.assertIn("RECOMMENDED FOR YOUR 7-YEAR HORIZON", rec_banner.text.upper())
         self.assertIn("Option B: 6.00% / 2 pts", rec_banner.text)
         self.assertIn("6,033 lower estimated financing cost", rec_banner.text)
@@ -84,8 +89,12 @@ class TestCompareMatrixE2E(StaticLiveServerTestCase):
         table_text = matrix.text
         self.assertIn("2,528", table_text)  # Option A P&I
         self.assertIn("2,398", table_text)  # Option B P&I
-        self.assertIn("174,040", table_text)  # Option A 7-year cost ($174,039.84 rounds to 174,040)
-        self.assertIn("168,007", table_text)  # Option B 7-year cost ($168,006.52 rounds to 168,007)
+        self.assertIn(
+            "174,040", table_text
+        )  # Option A 7-year cost ($174,039.84 rounds to 174,040)
+        self.assertIn(
+            "168,007", table_text
+        )  # Option B 7-year cost ($168,006.52 rounds to 168,007)
 
         # 3. Change Hold Period to 5 years (60 months)
         select_elem = self.driver.find_element(By.CSS_SELECTOR, "select.form-select")
@@ -94,7 +103,9 @@ class TestCompareMatrixE2E(StaticLiveServerTestCase):
 
         # Wait for page reload with horizon=60
         wait.until(EC.url_contains("horizon=60"))
-        rec_banner = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner")))
+        rec_banner = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner"))
+        )
         self.assertIn("5-YEAR", rec_banner.text.upper())
         self.assertIn("2,031 lower estimated financing cost", rec_banner.text)
 
@@ -104,6 +115,8 @@ class TestCompareMatrixE2E(StaticLiveServerTestCase):
         select.select_by_value("360")
 
         wait.until(EC.url_contains("horizon=360"))
-        rec_banner = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner")))
+        rec_banner = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "recommendation-banner"))
+        )
         self.assertIn("30-YEAR", rec_banner.text.upper())
         self.assertIn("38,825 lower estimated financing cost", rec_banner.text)

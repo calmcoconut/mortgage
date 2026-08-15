@@ -1,16 +1,23 @@
 from decimal import Decimal
-from hypothesis import given, settings, strategies as st
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from core.amortization import calculate_amortization
 from core.money import money
 
 
 @settings(max_examples=100)
 @given(
-    loan_amount=st.decimals(min_value=Decimal("10000"), max_value=Decimal("2000000"), places=2),
+    loan_amount=st.decimals(
+        min_value=Decimal("10000"), max_value=Decimal("2000000"), places=2
+    ),
     rate_pct=st.decimals(min_value=Decimal("0.0"), max_value=Decimal("20.0"), places=4),
     term_months=st.integers(min_value=12, max_value=480),
 )
-def test_amortization_invariants(loan_amount: Decimal, rate_pct: Decimal, term_months: int):
+def test_amortization_invariants(
+    loan_amount: Decimal, rate_pct: Decimal, term_months: int
+):
     note_rate = rate_pct / Decimal("100")
     schedule = calculate_amortization(
         loan_amount=loan_amount,
@@ -36,9 +43,15 @@ def test_amortization_invariants(loan_amount: Decimal, rate_pct: Decimal, term_m
 
 @settings(max_examples=50)
 @given(
-    loan_amount=st.decimals(min_value=Decimal("50000"), max_value=Decimal("1000000"), places=2),
-    rate1_pct=st.decimals(min_value=Decimal("0.0"), max_value=Decimal("10.0"), places=2),
-    rate2_pct=st.decimals(min_value=Decimal("10.01"), max_value=Decimal("20.0"), places=2),
+    loan_amount=st.decimals(
+        min_value=Decimal("50000"), max_value=Decimal("1000000"), places=2
+    ),
+    rate1_pct=st.decimals(
+        min_value=Decimal("0.0"), max_value=Decimal("10.0"), places=2
+    ),
+    rate2_pct=st.decimals(
+        min_value=Decimal("10.01"), max_value=Decimal("20.0"), places=2
+    ),
     term_months=st.sampled_from([180, 240, 360]),
 )
 def test_total_interest_monotonic_with_rate(

@@ -1,4 +1,5 @@
 import uuid
+
 from django.db import models
 from django.utils import timezone
 
@@ -13,7 +14,9 @@ class ScenarioModel(models.Model):
     )
     property_value = models.DecimalField(max_digits=12, decimal_places=2)
     loan_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    down_payment = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    down_payment = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
     fico_band = models.CharField(
         max_length=20,
         choices=[
@@ -65,11 +68,21 @@ class ScenarioModel(models.Model):
     )
     term_months = models.PositiveIntegerField(default=360)
     expected_horizon_months = models.PositiveIntegerField(default=84)  # 7 years
-    gross_monthly_income = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    recurring_monthly_debts = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    estimated_property_tax_monthly = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    estimated_homeowners_insurance_monthly = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    estimated_hoa_monthly = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    gross_monthly_income = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    recurring_monthly_debts = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    estimated_property_tax_monthly = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    estimated_homeowners_insurance_monthly = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    estimated_hoa_monthly = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -100,14 +113,22 @@ class LoanOptionModel(models.Model):
     )
     entered_on = models.DateField(default=timezone.now)
     loan_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    note_rate = models.DecimalField(max_digits=8, decimal_places=6)  # e.g. 0.058750 for 5.875%
+    note_rate = models.DecimalField(
+        max_digits=8, decimal_places=6
+    )  # e.g. 0.058750 for 5.875%
     apr = models.DecimalField(max_digits=8, decimal_places=6, null=True, blank=True)
     term_months = models.PositiveIntegerField(default=360)
-    points_pct = models.DecimalField(max_digits=8, decimal_places=6, default=0)  # e.g. 0.020000 for 2%
+    points_pct = models.DecimalField(
+        max_digits=8, decimal_places=6, default=0
+    )  # e.g. 0.020000 for 2%
     lender_credit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     lender_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    monthly_mi = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    upfront_mi = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    monthly_mi = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    upfront_mi = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
     notes = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

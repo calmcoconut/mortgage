@@ -1,5 +1,7 @@
 from decimal import Decimal
+
 import pytest
+
 from core.money import MONEY_Q, money
 
 

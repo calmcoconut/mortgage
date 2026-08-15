@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
+
 import pytest
+
 from core.models import SourceType
 from web.models import LoanOptionModel, ScenarioModel
 from web.services import (

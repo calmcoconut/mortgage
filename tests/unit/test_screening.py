@@ -1,7 +1,12 @@
 from decimal import Decimal
-import pytest
+
 from core.models import ScenarioInput, ScreeningState
-from core.screening import back_end_dti, ltv, screen_all_programs, screen_conventional, screen_fha, screen_va, screen_usda
+from core.screening import (
+    back_end_dti,
+    ltv,
+    screen_all_programs,
+    screen_conventional,
+)
 
 
 def test_ltv_and_dti_derivation():
@@ -22,7 +27,9 @@ def test_ltv_and_dti_derivation():
         recurring_monthly_debts=Decimal("500"),
     )
     assert ltv(scenario) == Decimal("0.80")
-    assert back_end_dti(scenario, Decimal("2500")) == Decimal("0.30")  # (2500 + 500) / 10000
+    assert back_end_dti(scenario, Decimal("2500")) == Decimal(
+        "0.30"
+    )  # (2500 + 500) / 10000
 
 
 def test_screening_missing_income_returns_more_info():

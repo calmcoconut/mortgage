@@ -1,7 +1,9 @@
 from datetime import date, timedelta
 from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from web.models import BenchmarkPointModel, LoanOptionModel, ScenarioModel
 
 
@@ -155,4 +157,6 @@ class Command(BaseCommand):
                 defaults={"value": val15, "fetched_at": now},
             )
 
-        self.stdout.write(self.style.SUCCESS("Successfully seeded demo scenarios and benchmark data!"))
+        self.stdout.write(
+            self.style.SUCCESS("Successfully seeded demo scenarios and benchmark data!")
+        )

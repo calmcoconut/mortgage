@@ -1,12 +1,13 @@
 from datetime import date
 from decimal import Decimal
-import pytest
+
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
 from web.models import LoanOptionModel, ScenarioModel
 
 
@@ -63,10 +64,14 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
 
     def test_projected_costs_cards_and_canvas(self):
         wait = WebDriverWait(self.driver, 10)
-        self.driver.get(f"{self.live_server_url}/scenarios/{self.scenario.id}/projected-costs/?horizon=84")
+        self.driver.get(
+            f"{self.live_server_url}/scenarios/{self.scenario.id}/projected-costs/?horizon=84"
+        )
 
         # 1. Assert KPI Summary Cards
-        kpi_grid = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "kpi-grid")))
+        kpi_grid = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "kpi-grid"))
+        )
         grid_text = kpi_grid.text
         self.assertIn("6,033", grid_text)  # Option B savings at 7 years ($6,033)
         self.assertIn("Month 48", grid_text)  # Points break-even Month 48
@@ -91,5 +96,7 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         self.driver.execute_script("reloadWithDiscount('5.0');")
 
         wait.until(EC.url_contains("discount_rate=5.0"))
-        kpi_grid = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "kpi-grid")))
+        kpi_grid = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "kpi-grid"))
+        )
         self.assertIn("Month 48", kpi_grid.text)
