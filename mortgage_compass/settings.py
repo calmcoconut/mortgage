@@ -70,4 +70,5 @@ FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
 RATEAPI_KEY = os.environ.get("RATEAPI_KEY", "")
 RATEAPI_BUCKET_SIZE = int(os.environ.get("RATEAPI_BUCKET_SIZE", "25000"))
 RATEAPI_SAFETY_THRESHOLD = int(os.environ.get("RATEAPI_SAFETY_THRESHOLD", "18"))
+RATEAPI_CACHE_TTL_DAYS = int(os.environ.get("RATEAPI_CACHE_TTL_DAYS", "7"))  # Default: 1 week (7 days)
 

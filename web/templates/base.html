@@ -1,4 +1,5 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,7 +87,7 @@
           <div class="scenario-summary-pill">
             <span>{{ scenario.name }}</span>
             <span style="color: var(--text-subtle);">·</span>
-            <span>${{ scenario.loan_amount|floatformat:0 }} loan</span>
+            <span>${{ scenario.loan_amount|floatformat:0|intcomma }} loan</span>
             <span style="color: var(--text-subtle);">·</span>
             <span>
               {% if scenario.property_value %}

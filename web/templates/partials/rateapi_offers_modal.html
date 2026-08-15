@@ -1,3 +1,4 @@
+{% load humanize %}
 <div class="modal-backdrop" id="rateapi-modal-backdrop" onclick="if(event.target === this) document.getElementById('rateapi-modal-container').innerHTML = '';">
   <div class="rateapi-modal card">
     <div class="modal-header">
@@ -7,7 +8,7 @@
           <span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; font-size:0.75rem; border:1px solid rgba(59,130,246,0.3);">Powered by RateAPI.dev</span>
         </h2>
         <p style="margin:0.25rem 0 0 0; color:var(--text-muted); font-size:0.85rem;">
-          Real-time ranked credit union & lender rates for <strong>{{ scenario.state }} • ${{ scenario.loan_amount|floatformat:0 }} • {{ scenario.term_months|divisibleby:12|yesno:"30-Year,15-Year" }}</strong>
+          Real-time ranked credit union & lender rates for <strong>{{ scenario.state }} • ${{ scenario.loan_amount|floatformat:0|intcomma }} • {{ scenario.term_months|divisibleby:12|yesno:"30-Year,15-Year" }}</strong>
         </p>
       </div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rateapi-modal-container').innerHTML = '';" style="padding:0.4rem 0.8rem;">✕ Close</button>

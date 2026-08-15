@@ -29,6 +29,15 @@
       <span>Lock: 30 days</span>
     </div>
 
+    <!-- Seed from Cache Button -->
+    <form method="post" action="{% url 'web:scenario_seed_from_cache' scenario.id %}" style="margin: 0;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline btn-sm" title="Seed top quotes from local RateAPI snapshot cache without making new API calls" style="display: flex; align-items: center; gap: 4px;">
+        <span>⚡</span>
+        <span>Auto-Seed from Cache</span>
+      </button>
+    </form>
+
     <!-- RateAPI Live Market Offers Button -->
     <button type="button"
             id="btn-rateapi-enrich"

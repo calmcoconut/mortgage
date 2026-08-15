@@ -55,6 +55,11 @@ urlpatterns = [
         views.scenario_import_rateapi_offer,
         name="scenario_import_rateapi_offer",
     ),
+    path(
+        "scenarios/<uuid:scenario_id>/seed-from-cache/",
+        views.scenario_seed_from_cache,
+        name="scenario_seed_from_cache",
+    ),
     path("rate-watch/", views.rate_watch, name="rate_watch"),
     path("learn/", views.learn, name="learn"),
 ]

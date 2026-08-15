@@ -58,7 +58,10 @@ def test_scenario_list_view(client, sample_scenario):
     url = reverse("web:scenario_list")
     resp = client.get(url)
     assert resp.status_code == 200
-    assert "Mountain View Purchase" in resp.content.decode()
+    content = resp.content.decode()
+    assert "Mountain View Purchase" in content
+    assert "$680,000 loan" in content
+    assert "$850,000" in content
 
 
 @pytest.mark.django_db

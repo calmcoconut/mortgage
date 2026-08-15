@@ -58,8 +58,20 @@
             </div>
           </th>
         {% empty %}
-          <th style="padding: 24px; text-align: center; color: var(--text-muted);">
-            No options added yet. Click "Add Loan Option" below.
+          <th style="padding: 28px; text-align: center; color: var(--text-muted);">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">No loan options added yet</div>
+            <p style="font-size: 0.85rem; margin-bottom: 16px;">Add custom options manually, or auto-seed top market quotes from your RateAPI cache.</p>
+            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+              <a href="{% url 'web:option_create' scenario_id=scenario.id %}" class="btn btn-primary btn-sm">
+                + Add Loan Option
+              </a>
+              <form method="post" action="{% url 'web:scenario_seed_from_cache' scenario.id %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline btn-sm">
+                  ⚡ Auto-Seed from RateAPI Cache
+                </button>
+              </form>
+            </div>
           </th>
         {% endfor %}
       </tr>

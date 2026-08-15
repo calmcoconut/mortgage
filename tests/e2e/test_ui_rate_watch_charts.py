@@ -164,4 +164,26 @@ class TestRateWatchChartsE2E(StaticLiveServerTestCase):
         disp_chart_btn.click()
         self.assertTrue(disp_canvas.is_displayed(), "Dispersion chart view should be visible after toggle back")
 
+        # 9. Assert Dispersion Product & Limit Filters
+        from selenium.webdriver.support.ui import Select
+
+        prod_select = Select(self.driver.find_element(By.ID, "dispersionProductFilter"))
+        limit_select = Select(self.driver.find_element(By.ID, "dispersionLimitFilter"))
+
+        # Test selecting 30-Year Fixed
+        prod_select.select_by_value("30-year-fixed")
+        filtered_labels = self.driver.execute_script("return window.dispersionChart.data.labels;")
+        for lbl in filtered_labels:
+            self.assertIn("30Y Fixed", lbl)
+
+        # Test changing limit to 5
+        limit_select.select_by_value("5")
+        count_labels = self.driver.execute_script("return window.dispersionChart.data.labels.length;")
+        self.assertLessEqual(count_labels, 5)
+
+        # Switch back to All products
+        prod_select.select_by_value("all")
+        all_labels = self.driver.execute_script("return window.dispersionChart.data.labels.length;")
+        self.assertGreater(all_labels, 0)
+
 

@@ -547,18 +547,37 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
 
         return f"{short_lender} ({p_label})"
 
-    lender_snapshots = list(RateApiSnapshotModel.objects.order_by("rate")[:8])
+    all_lender_snapshots = list(RateApiSnapshotModel.objects.order_by("rate")[:100])
+    dispersion_all_items = [
+        {
+            "lender": s.lender,
+            "product_type": s.product_type,
+            "product_name": s.product_name,
+            "rate": float(s.rate),
+            "apr": float(s.apr),
+            "points": float(s.points),
+            "label": _format_short_lender(s.lender, s.product_name, s.product_type),
+            "full_name": f"{s.lender} — {s.product_name or s.product_type}",
+            "eligibility_summary": s.eligibility_summary,
+        }
+        for s in all_lender_snapshots
+    ]
+
+    # Unique product types present in the snapshot database
+    available_product_types = sorted(list({s.product_type for s in all_lender_snapshots if s.product_type}))
+
+    initial_snapshots = all_lender_snapshots[:10]
     dispersion_chart_data = {
         "labels": [
             _format_short_lender(s.lender, s.product_name, s.product_type)
-            for s in lender_snapshots
+            for s in initial_snapshots
         ],
         "full_names": [
             f"{s.lender} — {s.product_name or s.product_type}"
-            for s in lender_snapshots
+            for s in initial_snapshots
         ],
-        "rates": [float(s.rate) for s in lender_snapshots],
-        "aprs": [float(s.apr) for s in lender_snapshots],
+        "rates": [float(s.rate) for s in initial_snapshots],
+        "aprs": [float(s.apr) for s in initial_snapshots],
     }
 
     macro_spread = calculate_fred_vs_cu_spread()
@@ -580,7 +599,9 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
         "fred_granularity_json": json.dumps(fred_granularity),
         "product_chart_json": json.dumps(product_chart_data),
         "dispersion_chart_json": json.dumps(dispersion_chart_data),
-        "lender_snapshots": lender_snapshots,
+        "dispersion_all_items_json": json.dumps(dispersion_all_items),
+        "available_product_types": available_product_types,
+        "lender_snapshots": all_lender_snapshots,
         "macro_spread": macro_spread,
         "budget": budget,
         "last_refresh": last_refresh,
@@ -692,6 +713,50 @@ def scenario_import_rateapi_offer(
             lender_fees=Decimal("0.00"),
             notes=f"Imported from live market quote via RateAPI.dev for {institution_name}.",
         )
+
+    return redirect("web:scenario_compare", scenario_id=scenario.id)
+
+
+def scenario_seed_from_cache(request: HttpRequest, scenario_id: UUID) -> HttpResponse:
+    scenario = get_object_or_404(ScenarioModel, id=scenario_id)
+    if request.method == "POST":
+        target_product = "30-year-fixed" if scenario.term_months >= 300 else "15-year-fixed"
+        snapshots = list(
+            RateApiSnapshotModel.objects.filter(
+                state=scenario.state, product_type=target_product
+            ).order_by("rate")[:3]
+        )
+        if not snapshots:
+            snapshots = list(
+                RateApiSnapshotModel.objects.filter(state=scenario.state).order_by("rate")[:3]
+            )
+
+        for snap in snapshots:
+            exists = scenario.loan_options.filter(
+                institution_name=snap.lender,
+                note_rate=snap.rate / 100 if snap.rate > 1 else snap.rate,
+            ).exists()
+            if not exists:
+                raw_rate = snap.rate / 100 if snap.rate > 1 else snap.rate
+                raw_apr = (snap.apr / 100) if (snap.apr and snap.apr > 1) else snap.apr
+                raw_points = (snap.points / 100) if (snap.points and snap.points > 1) else snap.points
+                LoanOptionModel.objects.create(
+                    scenario=scenario,
+                    label=f"{snap.lender} ({snap.product_name or target_product})",
+                    institution_name=snap.lender,
+                    source_type="rate_api",
+                    entered_on=snap.observed_on,
+                    loan_amount=scenario.loan_amount,
+                    note_rate=raw_rate,
+                    apr=raw_apr,
+                    points_pct=raw_points,
+                    term_months=scenario.term_months,
+                    confidence_score=snap.confidence_score or Decimal("0.85"),
+                    lender_credit=Decimal("0.00"),
+                    lender_fees=Decimal("0.00"),
+                    notes=snap.eligibility_summary
+                    or f"Seeded from local RateAPI snapshot cache ({snap.product_name or target_product}).",
+                )
 
     return redirect("web:scenario_compare", scenario_id=scenario.id)
 

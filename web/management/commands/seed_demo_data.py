@@ -72,20 +72,59 @@ class Command(BaseCommand):
             notes="50% of the escrow credit for observed paths",
         )
 
-        LoanOptionModel.objects.create(
-            scenario=mv_scenario,
-            label="Option C: Credit Union Quote",
-            source_type="manual",
-            entered_on=date.today() - timedelta(days=2),
-            loan_amount=Decimal("680000.00"),
-            note_rate=Decimal("0.06375"),
-            apr=Decimal("0.0640"),
-            term_months=360,
-            points_pct=Decimal("0.0050"),
-            lender_credit=Decimal("0.00"),
-            lender_fees=Decimal("950.00"),
-            notes="Requires credit union membership",
+        # Option C: Seeded from top cached RateAPI snapshot if available, otherwise synthetic CU quote
+        best_cu_snap = (
+            RateApiSnapshotModel.objects.filter(
+                state="CA", product_type="30-year-fixed"
+            )
+            .order_by("rate")
+            .first()
         )
+
+        if best_cu_snap:
+            raw_rate = best_cu_snap.rate / 100 if best_cu_snap.rate > 1 else best_cu_snap.rate
+            raw_apr = (
+                (best_cu_snap.apr / 100)
+                if (best_cu_snap.apr and best_cu_snap.apr > 1)
+                else (raw_rate + Decimal("0.0015"))
+            )
+            raw_points = (
+                (best_cu_snap.points / 100)
+                if (best_cu_snap.points and best_cu_snap.points > 1)
+                else best_cu_snap.points
+            )
+            LoanOptionModel.objects.create(
+                scenario=mv_scenario,
+                label=f"Option C: {best_cu_snap.lender} (RateAPI)",
+                institution_name=best_cu_snap.lender,
+                source_type="rate_api",
+                entered_on=best_cu_snap.observed_on,
+                loan_amount=Decimal("680000.00"),
+                note_rate=raw_rate,
+                apr=raw_apr,
+                points_pct=raw_points,
+                term_months=360,
+                confidence_score=best_cu_snap.confidence_score or Decimal("0.880"),
+                lender_credit=Decimal("0.00"),
+                lender_fees=Decimal("850.00"),
+                notes=best_cu_snap.eligibility_summary
+                or "Live credit union quote seeded from RateAPI cache",
+            )
+        else:
+            LoanOptionModel.objects.create(
+                scenario=mv_scenario,
+                label="Option C: Credit Union Quote",
+                source_type="manual",
+                entered_on=date.today() - timedelta(days=2),
+                loan_amount=Decimal("680000.00"),
+                note_rate=Decimal("0.06375"),
+                apr=Decimal("0.0640"),
+                term_months=360,
+                points_pct=Decimal("0.0050"),
+                lender_credit=Decimal("0.00"),
+                lender_fees=Decimal("950.00"),
+                notes="Requires credit union membership",
+            )
 
         # 2. Worked Fixture Scenario (Section 11)
         wf_scenario, _ = ScenarioModel.objects.update_or_create(

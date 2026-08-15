@@ -125,22 +125,48 @@
       <canvas id="productCurveChart"></canvas>
     </div>
   </div>
-
-  <!-- Right Column: Live Credit Union Rate Dispersion -->
+   <!-- Right Column: Live Credit Union Rate Dispersion -->
   <div class="chart-card">
-    <div class="chart-header">
+    <div class="chart-header" style="flex-wrap: wrap; gap: 8px;">
       <div>
         <h3 class="chart-title">Live Credit Union Rate & APR Dispersion</h3>
         <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Top California Credit Union Conforming Quotes</p>
       </div>
-      <div class="chart-toolbar">
+      <div class="chart-toolbar" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <!-- Product Category Filter -->
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label for="dispersionProductFilter" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Product:</label>
+          <select id="dispersionProductFilter" style="padding: 3px 6px; font-size: 0.75rem; border-radius: 4px; border: 1px solid var(--border-color); background: #ffffff; color: var(--text-primary); cursor: pointer; font-weight: 500;">
+            <option value="all">All Products</option>
+            <option value="30-year-fixed">30Y Fixed</option>
+            <option value="15-year-fixed">15Y Fixed</option>
+            <option value="10-year-fixed">10Y Fixed</option>
+            <option value="7-1-arm">7/1 ARM</option>
+            <option value="5-1-arm">5/1 ARM</option>
+            <option value="3-1-arm">3/1 ARM</option>
+          </select>
+        </div>
+
+        <!-- Count Limit Filter -->
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <label for="dispersionLimitFilter" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Show:</label>
+          <select id="dispersionLimitFilter" style="padding: 3px 6px; font-size: 0.75rem; border-radius: 4px; border: 1px solid var(--border-color); background: #ffffff; color: var(--text-primary); cursor: pointer; font-weight: 500;">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">All</option>
+          </select>
+        </div>
+
+        <!-- View Switcher (Chart vs Table) -->
         <div class="granularity-segmented-control" id="dispersionViewControl">
           <button type="button" class="granularity-btn active" data-view="chart" id="dispersionChartBtn">Chart</button>
-          <button type="button" class="granularity-btn" data-view="table" id="dispersionTableBtn">Table (Copyable)</button>
+          <button type="button" class="granularity-btn" data-view="table" id="dispersionTableBtn">Table</button>
         </div>
       </div>
     </div>
-    <div id="dispersionChartWrapper" class="chart-canvas-wrapper" style="height: 340px;">
+    <div id="dispersionChartWrapper" class="chart-canvas-wrapper" style="height: 340px; overflow-y: auto;">
       <canvas id="dispersionChart"></canvas>
     </div>
     <div id="dispersionTableWrapper" style="display: none; height: 340px; overflow-y: auto; user-select: text; -webkit-user-select: text; padding: 4px 6px;">
@@ -153,8 +179,8 @@
             <th style="padding: 8px 6px; font-weight: 600; text-align: center;">Action</th>
           </tr>
         </thead>
-        <tbody>
-          {% for snap in lender_snapshots %}
+        <tbody id="dispersionTableBody">
+          {% for snap in lender_snapshots|slice:":10" %}
           <tr style="border-bottom: 1px solid #f1f5f9;">
             <td style="padding: 8px 6px; font-weight: 600; color: var(--text-primary); user-select: text; -webkit-user-select: text;">
               <span class="copyable-inst-name" style="user-select: all; -webkit-user-select: all; cursor: text;">{{ snap.lender }}</span>
@@ -190,96 +216,114 @@
   const fallback30 = {{ chart_30_json|safe }};
   const fallback15 = {{ chart_15_json|safe }};
 
-  let currentGranularity = 'monthly';
-  let initialData = (fredGranularityData && fredGranularityData[currentGranularity])
-    ? fredGranularityData[currentGranularity]
-    : { labels: fallbackDates, rates_30: fallback30, rates_15: fallback15 };
+  let initialDates = fallbackDates;
+  let initial30 = fallback30;
+  let initial15 = fallback15;
 
-  if (initialData && initialData.labels && initialData.labels.length > 0) {
-    const ctx = document.getElementById('fredChart').getContext('2d');
-    window.fredChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: initialData.labels,
-        datasets: [
-          {
-            label: '30-Year Fixed (MORTGAGE30US)',
-            data: initialData.rates_30,
-            borderColor: '#0f766e',
-            backgroundColor: 'rgba(15, 118, 110, 0.05)',
-            borderWidth: 2.5,
-            fill: true,
-            pointRadius: currentGranularity === 'weekly' ? 0.5 : 2,
-            pointHoverRadius: 5,
-            tension: 0.25
-          },
-          {
-            label: '15-Year Fixed (MORTGAGE15US)',
-            data: initialData.rates_15,
-            borderColor: '#0284c7',
-            backgroundColor: 'rgba(2, 132, 199, 0.05)',
-            borderWidth: 2,
-            pointRadius: currentGranularity === 'weekly' ? 0.5 : 2,
-            pointHoverRadius: 5,
-            tension: 0.25
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { position: 'top', align: 'end' },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
-            }
-          },
-          zoom: {
-            pan: { enabled: true, mode: 'x', threshold: 5 },
-            zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, mode: 'x' }
-          }
-        },
-        scales: {
-          y: {
-            ticks: { callback: v => v.toFixed(2) + '%' },
-            grid: { color: '#f1f5f9' }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { maxTicksLimit: 14 }
-          }
-        }
-      }
-    });
-
-    // Granularity Toggle Event Handlers
-    document.querySelectorAll('#fredGranularityControl .granularity-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const unit = this.getAttribute('data-granularity');
-        if (!unit || !fredGranularityData || !fredGranularityData[unit] || !window.fredChart) return;
-
-        document.querySelectorAll('#fredGranularityControl .granularity-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-
-        currentGranularity = unit;
-        const dataset = fredGranularityData[unit];
-        window.fredChart.data.labels = dataset.labels;
-        window.fredChart.data.datasets[0].data = dataset.rates_30;
-        window.fredChart.data.datasets[1].data = dataset.rates_15;
-        window.fredChart.data.datasets[0].pointRadius = unit === 'weekly' ? 0.5 : 2;
-        window.fredChart.data.datasets[1].pointRadius = unit === 'weekly' ? 0.5 : 2;
-
-        if (typeof window.fredChart.resetZoom === 'function') {
-          window.fredChart.resetZoom();
-        }
-        window.fredChart.update();
-      });
-    });
+  if (fredGranularityData && fredGranularityData.monthly) {
+    initialDates = fredGranularityData.monthly.labels;
+    initial30 = fredGranularityData.monthly.rates_30;
+    initial15 = fredGranularityData.monthly.rates_15;
   }
 
-  // 2. Product Term Structure & Yield Curve Chart
+  const ctxFred = document.getElementById('fredChart').getContext('2d');
+  window.fredChart = new Chart(ctxFred, {
+    type: 'line',
+    data: {
+      labels: initialDates,
+      datasets: [
+        {
+          label: '30-Year Fixed (MORTGAGE30US)',
+          data: initial30,
+          borderColor: '#0f766e',
+          backgroundColor: 'rgba(15, 118, 110, 0.08)',
+          borderWidth: 2,
+          pointRadius: initialDates.length > 100 ? 0 : 2,
+          pointHoverRadius: 4,
+          tension: 0.1,
+          fill: true,
+        },
+        {
+          label: '15-Year Fixed (MORTGAGE15US)',
+          data: initial15,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          borderWidth: 2,
+          pointRadius: initialDates.length > 100 ? 0 : 2,
+          pointHoverRadius: 4,
+          tension: 0.1,
+          fill: true,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', align: 'end' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y ? ctx.parsed.y.toFixed(3) : 'N/A'}%`
+          }
+        },
+        zoom: {
+          pan: { enabled: true, mode: 'x' },
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            mode: 'x',
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            maxTicksLimit: 12,
+            autoSkip: true,
+            maxRotation: 0,
+            font: { size: 11, family: "'Inter', system-ui, sans-serif" }
+          }
+        },
+        y: {
+          ticks: { callback: v => v.toFixed(2) + '%' },
+          grid: { color: '#f1f5f9' }
+        }
+      }
+    }
+  });
+
+  // Granularity Unit Switcher Event Listeners
+  if (fredGranularityData) {
+    const weeklyBtn = document.getElementById('granularityWeeklyBtn');
+    const monthlyBtn = document.getElementById('granularityMonthlyBtn');
+    const quarterlyBtn = document.getElementById('granularityQuarterlyBtn');
+
+    function setGranularity(mode) {
+      document.querySelectorAll('#fredGranularityControl .granularity-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.querySelector(`#fredGranularityControl .granularity-btn[data-unit="${mode}"]`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const series = fredGranularityData[mode];
+      if (series && window.fredChart) {
+        window.fredChart.data.labels = series.labels;
+        window.fredChart.data.datasets[0].data = series.rates_30;
+        window.fredChart.data.datasets[1].data = series.rates_15;
+        const pointRad = series.labels.length > 100 ? 0 : 2;
+        window.fredChart.data.datasets[0].pointRadius = pointRad;
+        window.fredChart.data.datasets[1].pointRadius = pointRad;
+        window.fredChart.resetZoom();
+        window.fredChart.update();
+      }
+    }
+
+    if (weeklyBtn) weeklyBtn.addEventListener('click', () => setGranularity('weekly'));
+    if (monthlyBtn) monthlyBtn.addEventListener('click', () => setGranularity('monthly'));
+    if (quarterlyBtn) quarterlyBtn.addEventListener('click', () => setGranularity('quarterly'));
+  }
+
+  // 2. Product Term Structure & Yield Curve Bar Chart
   const productData = {{ product_chart_json|safe }};
   if (productData && productData.labels && productData.labels.length > 0) {
     const ctxProd = document.getElementById('productCurveChart').getContext('2d');
@@ -291,13 +335,13 @@
           {
             label: 'Avg Note Rate (%)',
             data: productData.rates,
-            backgroundColor: '#0d9488',
+            backgroundColor: '#0f766e',
             borderRadius: 4,
           },
           {
             label: 'Avg APR (%)',
             data: productData.aprs,
-            backgroundColor: '#6366f1',
+            backgroundColor: '#14b8a6',
             borderRadius: 4,
           }
         ]
@@ -305,6 +349,9 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: { left: 4, right: 14, top: 4, bottom: 4 }
+        },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { position: 'top', align: 'end' },
@@ -316,101 +363,175 @@
           zoom: false
         },
         scales: {
-          y: {
-            ticks: { callback: v => v.toFixed(2) + '%' },
-            grid: { color: '#f1f5f9' },
-            beginAtZero: false,
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  // 3. Live Credit Union Rate Dispersion Horizontal Bar Chart
-  const dispersionData = {{ dispersion_chart_json|safe }};
-  if (dispersionData && dispersionData.labels && dispersionData.labels.length > 0) {
-    const ctxDisp = document.getElementById('dispersionChart').getContext('2d');
-    window.dispersionChart = new Chart(ctxDisp, {
-      type: 'bar',
-      data: {
-        labels: dispersionData.labels,
-        datasets: [
-          {
-            label: 'Note Rate (%)',
-            data: dispersionData.rates,
-            backgroundColor: '#3b82f6',
-            borderRadius: 4,
-          },
-          {
-            label: 'APR (%)',
-            data: dispersionData.aprs,
-            backgroundColor: '#8b5cf6',
-            borderRadius: 4,
-          }
-        ]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-          padding: { left: 4, right: 14, top: 4, bottom: 4 }
-        },
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { position: 'top', align: 'end' },
-          tooltip: {
-            callbacks: {
-              title: function(items) {
-                const idx = items[0].dataIndex;
-                return dispersionData.full_names ? dispersionData.full_names[idx] : items[0].label;
-              },
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x.toFixed(3)}%`
-            }
-          },
-          zoom: false
-        },
-        scales: {
           x: {
-            ticks: { callback: v => v.toFixed(2) + '%' },
-            grid: { color: '#f1f5f9' },
-            beginAtZero: false,
-          },
-          y: {
             grid: { display: false },
             ticks: {
-              autoSkip: false,
-              padding: 6,
               font: { size: 11, family: "'Inter', system-ui, sans-serif" }
             }
+          },
+          y: {
+            ticks: { callback: v => v.toFixed(2) + '%' },
+            grid: { color: '#f1f5f9' },
+            beginAtZero: false,
           }
         }
       }
     });
+  }
 
-    // 4. Dispersion View Switcher (Chart vs Table)
-    document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const view = this.getAttribute('data-view');
-        document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
+  // 3. Live Credit Union Rate Dispersion Horizontal Bar Chart with Product & Limit Filtering
+  const allDispersionItems = {{ dispersion_all_items_json|default:"[]"|safe }};
+  const productFilter = document.getElementById('dispersionProductFilter');
+  const limitFilter = document.getElementById('dispersionLimitFilter');
+  const tableBody = document.getElementById('dispersionTableBody');
 
-        const chartWrapper = document.getElementById('dispersionChartWrapper');
-        const tableWrapper = document.getElementById('dispersionTableWrapper');
+  const initialItems = allDispersionItems.slice(0, 10);
+  const ctxDisp = document.getElementById('dispersionChart').getContext('2d');
 
-        if (view === 'table') {
-          chartWrapper.style.display = 'none';
-          tableWrapper.style.display = 'block';
-        } else {
-          tableWrapper.style.display = 'none';
-          chartWrapper.style.display = 'block';
-          if (window.dispersionChart) {
-            window.dispersionChart.resize();
+  window.dispersionChart = new Chart(ctxDisp, {
+    type: 'bar',
+    data: {
+      labels: initialItems.map(i => i.label),
+      datasets: [
+        {
+          label: 'Note Rate (%)',
+          data: initialItems.map(i => i.rate),
+          backgroundColor: '#3b82f6',
+          borderRadius: 4,
+        },
+        {
+          label: 'APR (%)',
+          data: initialItems.map(i => i.apr),
+          backgroundColor: '#8b5cf6',
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { left: 4, right: 14, top: 4, bottom: 4 }
+      },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', align: 'end' },
+        tooltip: {
+          callbacks: {
+            title: function(items) {
+              const idx = items[0].dataIndex;
+              return window.dispersionChart.full_names ? window.dispersionChart.full_names[idx] : items[0].label;
+            },
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x.toFixed(3)}%`
+          }
+        },
+        zoom: false
+      },
+      scales: {
+        x: {
+          ticks: { callback: v => v.toFixed(2) + '%' },
+          grid: { color: '#f1f5f9' },
+          beginAtZero: false,
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            autoSkip: false,
+            padding: 6,
+            font: { size: 11, family: "'Inter', system-ui, sans-serif" }
           }
         }
+      }
+    }
+  });
+  window.dispersionChart.full_names = initialItems.map(i => i.full_name);
+
+  function renderDispersion() {
+    const selectedProd = productFilter ? productFilter.value : 'all';
+    const limit = limitFilter ? parseInt(limitFilter.value, 10) : 10;
+
+    let filtered = allDispersionItems;
+    if (selectedProd !== 'all') {
+      filtered = filtered.filter(item => {
+        if (item.product_type === selectedProd) return true;
+        const pType = (item.product_type || '').toLowerCase();
+        const pName = (item.product_name || '').toLowerCase();
+        if (selectedProd === '30-year-fixed') return pType.includes('30') || pName.includes('30');
+        if (selectedProd === '15-year-fixed') return pType.includes('15') || pName.includes('15');
+        if (selectedProd === '10-year-fixed') return pType.includes('10') || pName.includes('10');
+        if (selectedProd === '7-1-arm') return pType.includes('7-1') || pName.includes('7/1') || pName.includes('7-1');
+        if (selectedProd === '5-1-arm') return pType.includes('5-1') || pName.includes('5/1') || pName.includes('5-1');
+        if (selectedProd === '3-1-arm') return pType.includes('3-1') || pName.includes('3/1') || pName.includes('3-1');
+        return false;
       });
-    });
+    }
+
+    const items = filtered.slice(0, limit);
+
+    // Update Chart
+    if (window.dispersionChart) {
+      window.dispersionChart.data.labels = items.map(i => i.label);
+      window.dispersionChart.data.datasets[0].data = items.map(i => i.rate);
+      window.dispersionChart.data.datasets[1].data = items.map(i => i.apr);
+      window.dispersionChart.full_names = items.map(i => i.full_name);
+
+      const chartWrapper = document.getElementById('dispersionChartWrapper');
+      if (chartWrapper) {
+        chartWrapper.style.height = Math.max(340, items.length * 34) + 'px';
+      }
+      window.dispersionChart.update();
+    }
+
+    // Update Table
+    if (tableBody) {
+      if (items.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">No quotes found for this product category.</td></tr>';
+      } else {
+        tableBody.innerHTML = items.map(snap => `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 8px 6px; font-weight: 600; color: var(--text-primary); user-select: text; -webkit-user-select: text;">
+              <span class="copyable-inst-name" style="user-select: all; -webkit-user-select: all; cursor: text;">${snap.lender}</span>
+              <div style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">${snap.product_name || snap.product_type}</div>
+            </td>
+            <td style="padding: 8px 6px; text-align: right; color: #0f766e; font-weight: 700;">${snap.rate.toFixed(3)}%</td>
+            <td style="padding: 8px 6px; text-align: right; color: #6366f1; font-weight: 600;">${snap.apr.toFixed(3)}%</td>
+            <td style="padding: 8px 6px; text-align: center;">
+              <button type="button" class="btn-copy-name" onclick="navigator.clipboard.writeText('${snap.lender.replace(/'/g, "\\'")}'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 1200);" style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; cursor: pointer; color: #475569; font-weight: 600;">
+                Copy
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      }
+    }
   }
+
+  if (productFilter) productFilter.addEventListener('change', renderDispersion);
+  if (limitFilter) limitFilter.addEventListener('change', renderDispersion);
+  renderDispersion();
+
+  // 4. Dispersion View Switcher (Chart vs Table)
+  document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const view = this.getAttribute('data-view');
+      document.querySelectorAll('#dispersionViewControl .granularity-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+
+      const chartWrapper = document.getElementById('dispersionChartWrapper');
+      const tableWrapper = document.getElementById('dispersionTableWrapper');
+
+      if (view === 'table') {
+        chartWrapper.style.display = 'none';
+        tableWrapper.style.display = 'block';
+      } else {
+        tableWrapper.style.display = 'none';
+        chartWrapper.style.display = 'block';
+        if (window.dispersionChart) {
+          window.dispersionChart.resize();
+        }
+      }
+    });
+  });
 </script>
 {% endblock %}

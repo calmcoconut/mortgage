@@ -91,3 +91,28 @@ def test_scenario_import_rateapi_offer_post(client, test_scenario):
     assert option.note_rate == Decimal("0.060000")
     assert option.confidence_score == Decimal("0.950")
 
+
+@pytest.mark.django_db
+def test_scenario_seed_from_cache_post(client, test_scenario):
+    from web.models import RateApiSnapshotModel
+    RateApiSnapshotModel.objects.create(
+        lender="Sacramento Credit Union",
+        state="CA",
+        product_type="30-year-fixed",
+        product_name="30-Year Fixed Conforming",
+        rate=Decimal("5.875"),
+        apr=Decimal("5.920"),
+        points=Decimal("0.000"),
+    )
+
+    url = reverse("web:scenario_seed_from_cache", kwargs={"scenario_id": test_scenario.id})
+    response = client.post(url)
+    assert response.status_code == 302
+    assert response.url == reverse("web:scenario_compare", kwargs={"scenario_id": test_scenario.id})
+
+    seeded_option = LoanOptionModel.objects.filter(scenario=test_scenario, institution_name="Sacramento Credit Union").first()
+    assert seeded_option is not None
+    assert seeded_option.source_type == "rate_api"
+    assert seeded_option.note_rate == Decimal("0.05875")
+    assert seeded_option.apr == Decimal("0.0592")
+
