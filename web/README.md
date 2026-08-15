@@ -11,28 +11,32 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 ├── [apps.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/apps.py)
 │   └── Django AppConfig registration for the web application.
 ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py)
-│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L9) (home price, down payment, income/debt context), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L42) (rate, APR, points, confidence metadata), and [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L106) (historical FRED benchmark series).
+│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7) (home price, down payment, income/debt context), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L98) (rate, APR, points, confidence metadata), and [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L145) (historical FRED benchmark series).
 ├── [forms.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py)
-│   └── Django ModelForms: [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L6) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L64) with decimal percentage-to-ratio conversions.
+│   └── Django ModelForms: [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L8) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L95) with decimal percentage-to-ratio conversions.
 ├── [services.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py)
-│   └── Domain boundary converters ([`orm_to_scenario_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L11), [`orm_to_loan_option_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L27)) and Chart.js precomputed serializer ([`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L65)).
+│   └── Domain boundary converters ([`scenario_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L15), [`loan_option_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L38)) and Chart.js precomputed serializer ([`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L78)).
 ├── [urls.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/urls.py)
 │   └── URL routing definitions for scenario management, HTMX live screening, matrix comparisons, projected costs, option CRUD, rate watch, and methodology.
 ├── [views.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py)
-│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L114), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L182), and [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L76).
+│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L143), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L226), and [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L76).
 ├── management/commands/
 │   ├── [fetch_fred_benchmarks.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_fred_benchmarks.py)
-│   │   └── CLI command querying the Federal Reserve Economic Data (FRED) API for weekly 30-year (`MORTGAGE30US`) and 15-year (`MORTGAGE15US`) rate series.
+│   │   └── CLI command querying the Federal Reserve Economic Data (FRED) API for 5 years of weekly 30-year (`MORTGAGE30US`) and 15-year (`MORTGAGE15US`) rate series.
 │   └── [seed_demo_data.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/seed_demo_data.py)
-│       └── Populates the database with the Section 11 worked fixture ($400k loan), Mountain View purchase scenario, and 52 weeks of benchmark data.
+│       └── Populates the database with the Section 11 worked fixture ($400k loan), Mountain View purchase scenario, and 5 years of benchmark data.
 ├── static/
 │   ├── css/[styles.css](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/css/styles.css)
 │   │   └── Custom design system with glassmorphism, responsive grid layouts, and color tokens matching the specification.
 │   └── js/
 │       ├── [htmx.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/htmx.min.js)
 │       │   └── Local vendor bundle powering real-time HTMX reactive form updates without full-page reloads.
-│       └── [chart.umd.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chart.umd.min.js)
-│           └── Local vendor bundle rendering cumulative financing cost, payment composition, and loan balance curves.
+│       ├── [chart.umd.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chart.umd.min.js)
+│       │   └── Local vendor bundle rendering cumulative financing cost, payment composition, and loan balance curves.
+│       ├── [chartjs-plugin-zoom.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chartjs-plugin-zoom.min.js)
+│       │   └── Local vendor bundle powering interactive wheel zoom and pan on all charts.
+│       └── [hammer.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/hammer.min.js)
+│           └── Local vendor bundle for touch and pinch gesture detection.
 └── templates/
     ├── [base.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/base.html)
     │   └── Master HTML skeleton with navigation bar, responsive drawer, and methodology footer.

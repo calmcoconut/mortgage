@@ -54,17 +54,17 @@ Mortgage Compass is designed with a strict separation between domain mathematics
 │   ├── [__init__.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/__init__.py)
 │   │   └── Package marker for the pure math core module.
 │   ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py)
-│   │   └── Frozen dataclasses defining [`ScenarioInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L22), [`LoanOptionInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L39), [`AmortizationRow`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L58), and [`ComparisonResult`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L79).
+│   │   └── Frozen dataclasses defining [`AmortizationRow`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L22), [`ScenarioInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L32), [`LoanOptionInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L53), and [`ComparisonResult`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L94).
 │   ├── [money.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py)
-│   │   └── Currency quantization helper [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L8) enforcing `ROUND_HALF_UP` to cents and rejecting raw floats.
+│   │   └── Currency quantization helper [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L6) enforcing `ROUND_HALF_UP` to cents and rejecting raw floats.
 │   ├── [amortization.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py)
-│   │   └── Monthly payment calculator [`calculate_monthly_pi()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L7) and full schedule generator [`calculate_amortization()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L23) with final-payment balance reconciliation.
+│   │   └── Monthly payment calculator [`calculate_monthly_pi()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L6) and full schedule generator [`calculate_amortization()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L29) with final-payment balance reconciliation.
 │   ├── [financing_cost.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py)
-│   │   └── Holding horizon cost engine [`calculate_option_result()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L11), points break-even analyzer [`calculate_break_even()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L80), and option comparator [`compare_options()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L125).
+│   │   └── Holding horizon cost engine [`calculate_option_result()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L22), points break-even analyzer [`calculate_break_even()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L69), and option comparator [`compare_options()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/financing_cost.py#L141).
 │   ├── [mi_fees.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/mi_fees.py)
-│   │   └── Fee estimators for Conventional PMI, FHA upfront/annual MIP, VA funding fee, and USDA guarantee fees.
+│   │   └── Fee estimators for Conventional PMI ([`conventional_pmi_monthly()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/mi_fees.py#L6)), FHA upfront/annual MIP ([`fha_mip()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/mi_fees.py#L36)), VA funding fee, and USDA guarantee fees.
 │   └── [screening.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/screening.py)
-│       └── Conservative rule-based screening engine [`screen_all_programs()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/screening.py#L80) checking LTV and DTI against program limits.
+│       └── Conservative rule-based screening engine [`screen_all_programs()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/screening.py#L95) checking LTV and DTI against program limits.
 ├── mortgage_compass/
 │   ├── [__init__.py](file:///Users/alejandrodiaz/Documents/projects/loan/mortgage_compass/__init__.py)
 │   │   └── Package marker for Django project configuration.
@@ -80,28 +80,32 @@ Mortgage Compass is designed with a strict separation between domain mathematics
 │   ├── [apps.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/apps.py)
 │   │   └── Django application configuration for the web UI.
 │   ├── [forms.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py)
-│   │   └── Django forms [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L6) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L64) with decimal percentage conversions.
+│   │   └── Django forms [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L8) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L95) with decimal percentage conversions.
 │   ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py)
-│   │   └── SQLite persistence models [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L9), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L42), and [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L106).
+│   │   └── SQLite persistence models [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L98), and [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L145).
 │   ├── [services.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py)
-│   │   └── Domain boundary converters [`orm_to_scenario_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L11), [`orm_to_loan_option_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L27), and Chart.js serializer [`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L65).
+│   │   └── Domain boundary converters [`scenario_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L15), [`loan_option_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L38), and Chart.js serializer [`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L78).
 │   ├── [urls.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/urls.py)
 │   │   └── URL dispatch definitions for scenario management, HTMX previews, comparisons, projected costs, and rate watch.
 │   ├── [views.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py)
-│   │   └── View controllers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L114), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L182), and [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L76).
+│   │   └── View controllers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L143), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L226), and [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L76).
 │   ├── management/commands/
 │   │   ├── [fetch_fred_benchmarks.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_fred_benchmarks.py)
-│   │   │   └── CLI command fetching weekly Freddie Mac 30Y and 15Y benchmark rates from the FRED API.
+│   │   │   └── CLI command fetching 5 years of weekly Freddie Mac 30Y and 15Y benchmark rates from the FRED API.
 │   │   └── [seed_demo_data.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/seed_demo_data.py)
-│   │       └── Seeds Section 11 worked fixture ($400k loan), Mountain View scenario, and historical benchmark points.
+│   │       └── Seeds Section 11 worked fixture ($400k loan), Mountain View scenario, and 5 years of historical benchmark points.
 │   ├── static/
 │   │   ├── css/[styles.css](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/css/styles.css)
 │   │   │   └── Polished responsive styles adhering to the design specification and mockups.
 │   │   └── js/
 │   │       ├── [htmx.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/htmx.min.js)
 │   │       │   └── Local vendor bundle for reactive UI interactions.
-│   │       └── [chart.umd.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chart.umd.min.js)
-│   │           └── Local vendor bundle for Chart.js rendering.
+│   │       ├── [chart.umd.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chart.umd.min.js)
+│   │       │   └── Local vendor bundle for Chart.js rendering.
+│   │       ├── [chartjs-plugin-zoom.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/chartjs-plugin-zoom.min.js)
+│   │       │   └── Local vendor bundle for Chart.js zoom and pan support.
+│   │       └── [hammer.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/hammer.min.js)
+│   │           └── Local vendor bundle for touch and pinch gesture recognizer.
 │   └── templates/
 │       ├── [base.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/base.html)
 │       │   └── Base layout with global navigation, mobile responsiveness, and footer disclaimer.
@@ -115,6 +119,10 @@ Mortgage Compass is designed with a strict separation between domain mathematics
 │       │   └── Dashboard listing all saved scenarios and benchmark market context.
 │       ├── [option_form.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/option_form.html)
 │       │   └── Loan Option transcription and editing form.
+│       ├── [option_confirm_delete.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/option_confirm_delete.html)
+│       │   └── Confirmation modal for deleting a loan option.
+│       ├── [scenario_confirm_delete.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_confirm_delete.html)
+│       │   └── Confirmation modal for deleting an entire scenario.
 │       ├── [rate_watch.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/rate_watch.html)
 │       │   └── Historical benchmark tracking page with FRED rate charts.
 │       ├── [learn.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/learn.html)

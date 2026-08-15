@@ -374,14 +374,17 @@ def rate_watch(request: HttpRequest) -> HttpResponse:
 
     points_30 = list(
         BenchmarkPointModel.objects.filter(series="MORTGAGE30US").order_by(
-            "observed_on"
-        )[:52]
+            "-observed_on"
+        )[:265]
     )
+    points_30.reverse()
+
     points_15 = list(
         BenchmarkPointModel.objects.filter(series="MORTGAGE15US").order_by(
-            "observed_on"
-        )[:52]
+            "-observed_on"
+        )[:265]
     )
+    points_15.reverse()
 
     chart_dates = [p.observed_on.strftime("%Y-%m-%d") for p in points_30]
     chart_30_vals = [float(p.value) for p in points_30]

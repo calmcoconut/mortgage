@@ -136,14 +136,14 @@ class Command(BaseCommand):
             notes="Breaks even at month 48; saves $6,033 over 7 years.",
         )
 
-        # 3. Seed 52 weeks of historical benchmark points
+        # 3. Seed 5 years (260 weeks) of historical benchmark points
         base_date = date.today()
         now = timezone.now()
 
-        for week in range(52):
+        for week in range(260):
             obs_d = base_date - timedelta(weeks=week)
             # Simulated realistic mortgage averages
-            val30 = Decimal("6.50") + Decimal(str(round((week * 0.015) % 0.6 - 0.3, 2)))
+            val30 = Decimal("6.50") + Decimal(str(round((week * 0.015) % 1.2 - 0.6, 2)))
             val15 = val30 - Decimal("0.75")
 
             BenchmarkPointModel.objects.update_or_create(
@@ -158,5 +158,5 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(
-            self.style.SUCCESS("Successfully seeded demo scenarios and benchmark data!")
+            self.style.SUCCESS("Successfully seeded demo scenarios and 5 years of benchmark data!")
         )

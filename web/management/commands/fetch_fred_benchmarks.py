@@ -17,9 +17,15 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--api-key", type=str, default="", help="FRED API key")
+        parser.add_argument(
+            "--years",
+            type=int,
+            default=5,
+            help="Number of years of historical benchmark data to fetch (default: 5)",
+        )
 
     def handle(self, *args, **options):
-        api_key = options["api_key"] or getattr(settings, "FRED_API_KEY", "")
+        api_key = options.get("api_key") or getattr(settings, "FRED_API_KEY", "")
         if not api_key:
             self.stdout.write(
                 self.style.WARNING(
@@ -27,6 +33,9 @@ class Command(BaseCommand):
                 )
             )
             return
+
+        years = options.get("years", 5) or 5
+        limit = max(years * 53, 265)
 
         now = timezone.now()
         total_upserted = 0
@@ -37,7 +46,7 @@ class Command(BaseCommand):
                 "api_key": api_key,
                 "file_type": "json",
                 "sort_order": "desc",
-                "limit": 52,  # Last 52 weeks
+                "limit": limit,
             }
             try:
                 resp = requests.get(FRED_API_URL, params=params, timeout=10)
