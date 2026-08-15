@@ -21,3 +21,17 @@ def test_reject_float_conversion():
     # money function expects Decimal
     with pytest.raises(TypeError):
         money(123.45)  # type: ignore
+
+
+def test_parse_rate_pct():
+    from core.money import parse_rate_pct
+
+    # Percentage string conversion
+    assert parse_rate_pct("6.875") == Decimal("0.06875")
+    assert parse_rate_pct("0.06875") == Decimal("0.06875")
+    assert parse_rate_pct(Decimal("6.875")) == Decimal("0.06875")
+    assert parse_rate_pct(Decimal("0.06875")) == Decimal("0.06875")
+    assert parse_rate_pct(6.875) == Decimal("0.06875")
+    assert parse_rate_pct(None) == Decimal("0.0000")
+    assert parse_rate_pct("") == Decimal("0.0000")
+

@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ScenarioInput
+from core.money import parse_rate_pct
 from core.screening import screen_all_programs
 from web.forms import LoanOptionForm, ScenarioForm
 from web.integrations.rateapi import (
@@ -682,12 +683,6 @@ def scenario_import_rateapi_offer(
         raw_term = request.POST.get("term_months", str(scenario.term_months))
         raw_conf = request.POST.get("confidence_score")
 
-        def parse_rate_pct(val: str) -> Decimal:
-            d = Decimal(val)
-            if d > 1:
-                return d / 100
-            return d
-
         try:
             note_rate = parse_rate_pct(raw_rate)
             apr = parse_rate_pct(raw_apr) if raw_apr else None
@@ -732,14 +727,15 @@ def scenario_seed_from_cache(request: HttpRequest, scenario_id: UUID) -> HttpRes
             )
 
         for snap in snapshots:
+            parsed_rate = parse_rate_pct(snap.rate)
             exists = scenario.loan_options.filter(
                 institution_name=snap.lender,
-                note_rate=snap.rate / 100 if snap.rate > 1 else snap.rate,
+                note_rate=parsed_rate,
             ).exists()
             if not exists:
-                raw_rate = snap.rate / 100 if snap.rate > 1 else snap.rate
-                raw_apr = (snap.apr / 100) if (snap.apr and snap.apr > 1) else snap.apr
-                raw_points = (snap.points / 100) if (snap.points and snap.points > 1) else snap.points
+                raw_rate = parsed_rate
+                raw_apr = parse_rate_pct(snap.apr) if snap.apr else None
+                raw_points = parse_rate_pct(snap.points) if snap.points else Decimal("0.0000")
                 LoanOptionModel.objects.create(
                     scenario=scenario,
                     label=f"{snap.lender} ({snap.product_name or target_product})",
@@ -759,4 +755,5 @@ def scenario_seed_from_cache(request: HttpRequest, scenario_id: UUID) -> HttpRes
                 )
 
     return redirect("web:scenario_compare", scenario_id=scenario.id)
+
 

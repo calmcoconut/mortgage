@@ -34,6 +34,7 @@ class RateApiAdapter:
         bucket_size: int | None = None,
         safety_threshold: int | None = None,
         cache_ttl_days: int | None = None,
+        request_timeout: tuple[float, float] | int | float | None = None,
     ):
         self.api_key = (
             api_key
@@ -54,6 +55,11 @@ class RateApiAdapter:
             cache_ttl_days
             if cache_ttl_days is not None
             else getattr(settings, "RATEAPI_CACHE_TTL_DAYS", 7)
+        )
+        self.request_timeout = (
+            request_timeout
+            if request_timeout is not None
+            else getattr(settings, "RATEAPI_REQUEST_TIMEOUT", (3.05, 10))
         )
 
     def get_budget_status(self) -> dict[str, Any]:
@@ -227,7 +233,7 @@ class RateApiAdapter:
             RATEAPI_DECISIONS_URL,
             json=payload,
             headers=headers,
-            timeout=10,
+            timeout=self.request_timeout,
         )
 
         if resp.status_code != 200:
@@ -352,7 +358,12 @@ class RateApiAdapter:
         }
 
         try:
-            resp = requests.get(url, params=params, headers=headers, timeout=10)
+            resp = requests.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=self.request_timeout,
+            )
             if resp.status_code != 200:
                 return list(RateApiSnapshotModel.objects.filter(state=state.upper())[:10])
 
