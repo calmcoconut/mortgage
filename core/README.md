@@ -11,7 +11,7 @@ The `core/` package encapsulates all financial, amortization, holding period, an
 ├── [__init__.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/__init__.py)
 │   └── Package initialization exposing the public core API symbols.
 ├── [money.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py)
-│   └── Decimal quantization utility [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L6) enforcing standard banking cent precision (`ROUND_HALF_UP`) and rejecting raw floats.
+│   └── Decimal quantization utility [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L6) enforcing standard banking cent precision (`ROUND_HALF_UP`), float rejection, and percentage parsing [`parse_rate_pct()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L13).
 ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py)
 │   └── Frozen dataclasses defining domain contracts: [`AmortizationRow`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L23), [`ScenarioInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L33), [`LoanOptionInput`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L54), [`OptionResult`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L74), and [`ComparisonResult`](file:///Users/alejandrodiaz/Documents/projects/loan/core/models.py#L97).
 ├── [amortization.py](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py)
@@ -28,11 +28,11 @@ The `core/` package encapsulates all financial, amortization, holding period, an
 
 ## Architectural Rules & Conventions
 
-1. **No Float Arithmetic**: All calculations must use `Decimal`. Any attempt to pass a `float` into [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L8) raises a `TypeError`.
+1. **No Float Arithmetic**: All calculations must use `Decimal`. Any attempt to pass a `float` into [`money()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/money.py#L6) raises a `TypeError`.
 2. **True Financing Cost Equation**:
    $$\text{Financing Cost}_h = \text{Net Upfront Fees} + \sum_{t=1}^h (\text{Interest}_t + \text{MI}_t)$$
    Principal paid down is accumulated as equity and must never be added to financing cost.
-3. **Exact Final Payment Reconciliation**: The final payment in [`calculate_amortization()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L23) adjusts for cumulative sub-cent rounding so ending balance reaches exactly `0.00`.
+3. **Exact Final Payment Reconciliation**: The final payment in [`calculate_amortization()`](file:///Users/alejandrodiaz/Documents/projects/loan/core/amortization.py#L29) adjusts for cumulative sub-cent rounding so ending balance reaches exactly `0.00`.
 
 ---
 

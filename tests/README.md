@@ -1,6 +1,6 @@
 # Automated Test Suite (`tests/`) — Developer Guide
 
-The `tests/` directory contains 34 automated tests across 4 testing tiers, providing 100% verification for the pure math core, Django ORM services, and browser interaction workflows.
+The `tests/` directory contains 54 automated tests across 4 testing tiers, providing 100% verification for the pure math core, Django ORM services, RateAPI integrations, and browser interaction workflows.
 
 ---
 
@@ -17,8 +17,14 @@ The `tests/` directory contains 34 automated tests across 4 testing tiers, provi
 │   │   └── Selenium test verifying the Section 11 worked fixture ($400k loan), recommendation banners, and hold period switches (5yr, 7yr, 30yr).
 │   ├── [test_ui_projected_costs.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_projected_costs.py)
 │   │   └── Selenium test verifying KPI cards, Chart.js canvas elements (`#cumulativeCostChart`, `#paymentCompositionChart`, `#loanBalanceChart`), and discount rate sensitivity.
-│   └── [test_ui_option_crud.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_option_crud.py)
-│       └── Selenium test verifying the complete Loan Option lifecycle (transcription, editing note rate, live matrix updates, and deletion).
+│   ├── [test_ui_option_crud.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_option_crud.py)
+│   │   └── Selenium test verifying the complete Loan Option lifecycle (transcription, editing note rate, live matrix updates, and deletion).
+│   ├── [test_ui_rateapi_enrichment.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_rateapi_enrichment.py)
+│   │   └── Selenium test for RateAPI Live Market Offers drawer modal, budget usage badge, and 1-click option import.
+│   ├── [test_ui_rate_watch_charts.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_rate_watch_charts.py)
+│   │   └── Selenium test for Rate Watch 5-Year FRED timeline, Product Yield Curve, Lender Dispersion filters, and KPI badges.
+│   └── [test_ui_data_sources.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_data_sources.py)
+│       └── Selenium test for Data Sources inventory search, product filter dropdown, multi-column sorting, and decision cache inspection.
 ├── golden/
 │   ├── [test_amortization.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/golden/test_amortization.py)
 │   │   └── Golden tests verifying exact zero-balance reconciliation over 12-month, 360-month, and 0% interest loan schedules.
@@ -29,7 +35,7 @@ The `tests/` directory contains 34 automated tests across 4 testing tiers, provi
 │       └── Hypothesis property tests asserting non-negativity of balances and monotonicity of total interest with respect to note rate.
 └── unit/
     ├── [test_money.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_money.py)
-    │   └── Unit tests for cent quantization, `ROUND_HALF_UP` behavior, and float rejection.
+    │   └── Unit tests for cent quantization, `ROUND_HALF_UP` behavior, rate percentage parsing, and float rejection.
     ├── [test_screening.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_screening.py)
     │   └── Unit tests for Conventional, FHA, VA, and USDA screening rules and missing-data handling.
     ├── [test_mi_fees.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_mi_fees.py)
@@ -42,15 +48,23 @@ The `tests/` directory contains 34 automated tests across 4 testing tiers, provi
     │   └── Unit tests for scenario HTTP views and HTMX screening partial responses.
     ├── [test_options_views.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_options_views.py)
     │   └── Unit tests for loan option form validation, creation, editing, and deletion views.
-    └── [test_fred_command.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_fred_command.py)
-        └── Unit tests for FRED API benchmark fetching with mock responses and network error handling.
+    ├── [test_fred_command.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_fred_command.py)
+    │   └── Unit tests for FRED API benchmark fetching with mock responses and network error handling.
+    ├── [test_rate_watch_view.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_rate_watch_view.py)
+    │   └── Unit tests for Rate Watch view, Chart.js payload serialization, and FRED vs CU spread calculations.
+    ├── [test_rateapi_adapter.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_rateapi_adapter.py)
+    │   └── Unit tests for RateAPI $25k amount-bucketing, payload serialization, 7-day TTL caching, budget guard ceiling, and geo context.
+    ├── [test_rateapi_market_rates.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_rateapi_market_rates.py)
+    │   └── Unit tests for durable SQLite RateAPI snapshot persistence, product yield curve aggregation, and idempotency.
+    └── [test_rateapi_views.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_rateapi_views.py)
+        └── Unit tests for RateAPI live offers HTMX preview, 1-click option import, auto-seeding, and data sources views.
 ```
 
 ---
 
 ## Test Execution Commands
 
-### 1. Run Complete Suite (34 Tests in ~10.9s)
+### 1. Run Complete Suite (54 Tests in ~15.5s)
 ```bash
 .venv/bin/pytest -v
 ```

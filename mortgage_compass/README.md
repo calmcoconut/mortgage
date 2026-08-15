@@ -11,7 +11,7 @@ The `mortgage_compass/` package houses the Django project configuration, setting
 ├── [__init__.py](file:///Users/alejandrodiaz/Documents/projects/loan/mortgage_compass/__init__.py)
 │   └── Package marker for the Django configuration module.
 ├── [settings.py](file:///Users/alejandrodiaz/Documents/projects/loan/mortgage_compass/settings.py)
-│   └── Django settings configuration containing database engine setup (SQLite WAL), installed apps, static asset configuration, humanize helpers, RateAPI thresholds, and timezone definitions.
+│   └── Django settings configuration containing database engine setup (SQLite WAL), installed apps, static asset configuration, humanize helpers, RateAPI thresholds, cache TTLs, geo defaults, and timezone definitions.
 ├── [urls.py](file:///Users/alejandrodiaz/Documents/projects/loan/mortgage_compass/urls.py)
 │   └── Root URL configuration delegating application routes to [`web.urls`](file:///Users/alejandrodiaz/Documents/projects/loan/web/urls.py) with static asset serving handlers.
 └── [wsgi.py](file:///Users/alejandrodiaz/Documents/projects/loan/mortgage_compass/wsgi.py)
@@ -27,12 +27,17 @@ The `mortgage_compass/` package houses the Django project configuration, setting
 2. **Static Asset Resolution**:
    Configured with `django.contrib.staticfiles` pointing to `web/static/` for local vendor bundles (`htmx.min.js`, `chart.umd.min.js`) and custom CSS.
 3. **Environment Overrides**:
-   - `SECRET_KEY`: Can be overridden via environment variable `SECRET_KEY` (defaults to a development fallback).
+   - `SECRET_KEY` / `DJANGO_SECRET_KEY`: Can be overridden via environment variable (defaults to a development fallback).
    - `DEBUG`: Configurable via `DEBUG=1` or `DEBUG=0`.
    - `FRED_API_KEY`: St. Louis FRED API key for weekly benchmark updates.
    - `RATEAPI_KEY`: RateAPI.dev API key for credit union live market quote enrichment.
    - `RATEAPI_BUCKET_SIZE`: Loan amount bucketing interval in dollars (default: `25000`).
    - `RATEAPI_SAFETY_THRESHOLD`: Monthly safety guard limit before blocking external requests (default: `18` calls/month).
+   - `RATEAPI_CACHE_TTL_DAYS`: Cache validity period in days before triggering fresh outbound RateAPI calls (default: `7` days).
+   - `DEFAULT_STATE`: Default state code for regional rate discovery (default: `CA`).
+   - `DEFAULT_COUNTY`: Default county name for charter filtering (default: `Santa Clara`).
+   - `DEFAULT_CITY`: Default municipal city (default: `San Jose`).
+   - `DEFAULT_ZIP`: Default postal code (default: `95110`).
 
 ---
 
@@ -44,6 +49,9 @@ The `mortgage_compass/` package houses the Django project configuration, setting
 
 # Seed worked fixture & demo data
 .venv/bin/python manage.py seed_demo_data
+
+# Batch ingest live credit union rates into local SQLite cache
+.venv/bin/python manage.py fetch_market_rates --all-terms
 
 # Start development server on port 8080
 .venv/bin/python manage.py runserver 0.0.0.0:8080
