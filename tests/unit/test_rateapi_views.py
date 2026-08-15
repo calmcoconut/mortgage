@@ -1,8 +1,10 @@
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from web.integrations.rateapi import RateApiAdapter
 from web.models import LoanOptionModel, ScenarioModel
@@ -115,4 +117,40 @@ def test_scenario_seed_from_cache_post(client, test_scenario):
     assert seeded_option.source_type == "rate_api"
     assert seeded_option.note_rate == Decimal("0.05875")
     assert seeded_option.apr == Decimal("0.0592")
+
+
+@pytest.mark.django_db
+def test_data_sources_view(client):
+    from web.models import RateApiCacheModel, RateApiSnapshotModel
+
+    RateApiSnapshotModel.objects.create(
+        lender="Star One Credit Union",
+        state="CA",
+        product_type="30-year-fixed",
+        product_name="30-Year Fixed Conforming",
+        rate=Decimal("5.990"),
+        apr=Decimal("6.010"),
+        points=Decimal("0.000"),
+        confidence_score=Decimal("0.940"),
+    )
+
+    RateApiCacheModel.objects.create(
+        cache_key="CA_purchase_680000_360",
+        query_state="CA",
+        query_intent="purchase",
+        query_amount_bucket=675000,
+        query_term_months=360,
+        response_payload={"actions": [{"offers": [{"credit_union_name": "Star One"}]}]},
+        expires_at=timezone.now() + timedelta(days=7),
+    )
+
+    url = reverse("web:data_sources")
+    response = client.get(url)
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "RateAPI data sources & local cache dump" in content
+    assert "Star One Credit Union" in content
+    assert "CA_purchase_680000_360" in content
+    assert "rawDataTable" in content
+
 

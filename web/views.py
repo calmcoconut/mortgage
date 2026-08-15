@@ -24,6 +24,7 @@ from web.integrations.rateapi import (
 from web.models import (
     BenchmarkPointModel,
     LoanOptionModel,
+    RateApiCacheModel,
     RateApiSnapshotModel,
     ScenarioModel,
 )
@@ -755,5 +756,55 @@ def scenario_seed_from_cache(request: HttpRequest, scenario_id: UUID) -> HttpRes
                 )
 
     return redirect("web:scenario_compare", scenario_id=scenario.id)
+
+
+def data_sources(request: HttpRequest) -> HttpResponse:
+    adapter = RateApiAdapter()
+    snapshots_qs = RateApiSnapshotModel.objects.all().order_by("rate")
+    cached_queries = RateApiCacheModel.objects.all().order_by("-cached_at")
+
+    all_snapshots = list(snapshots_qs)
+    unique_lenders = sorted(list({s.lender for s in all_snapshots if s.lender}))
+    unique_products = sorted(list({s.product_type for s in all_snapshots if s.product_type}))
+    unique_states = sorted(list({s.state for s in all_snapshots if s.state}))
+
+    snapshots_data = [
+        {
+            "id": s.id,
+            "lender": s.lender,
+            "product_type": s.product_type,
+            "product_name": s.product_name or s.product_type,
+            "loan_program": s.loan_program,
+            "state": s.state,
+            "rate": float(s.rate),
+            "apr": float(s.apr) if s.apr else None,
+            "points": float(s.points) if s.points else 0.0,
+            "confidence_score": float(s.confidence_score) if s.confidence_score else 0.85,
+            "confidence_category": "high" if (s.confidence_score and s.confidence_score >= 0.70) else "warning",
+            "observed_on": s.observed_on.isoformat() if s.observed_on else None,
+            "fetched_at": s.fetched_at.strftime("%Y-%m-%d %H:%M UTC") if s.fetched_at else None,
+            "eligibility_summary": s.eligibility_summary or "Standard conforming eligibility",
+        }
+        for s in all_snapshots
+    ]
+
+    budget_status = adapter.get_budget_status()
+
+    context = {
+        "snapshots": all_snapshots,
+        "snapshots_json": json.dumps(snapshots_data),
+        "total_snapshots": len(all_snapshots),
+        "unique_lenders_count": len(unique_lenders),
+        "unique_lenders": unique_lenders,
+        "unique_products": unique_products,
+        "unique_states": unique_states,
+        "cached_queries": cached_queries,
+        "cached_queries_count": cached_queries.count(),
+        "budget": budget_status,
+        "cache_ttl_days": adapter.cache_ttl_days,
+        "default_state": adapter.default_state,
+        "default_county": adapter.default_county,
+    }
+    return render(request, "data_sources.html", context)
 
 

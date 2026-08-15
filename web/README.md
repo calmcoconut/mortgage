@@ -26,6 +26,8 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 ├── management/commands/
 │   ├── [fetch_fred_benchmarks.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_fred_benchmarks.py)
 │   │   └── CLI command querying the Federal Reserve Economic Data (FRED) API for 5 years of weekly 30-year (`MORTGAGE30US`) and 15-year (`MORTGAGE15US`) rate series.
+│   ├── [fetch_market_rates.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_market_rates.py)
+│   │   └── CLI command batch-querying RateAPI.dev for live credit union quotes across 30Y Fixed, 15Y Fixed, 10Y Fixed, 7/1 ARM, and 5/1 ARM products into local durable storage.
 │   └── [seed_demo_data.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/seed_demo_data.py)
 │       └── Populates the database with the Section 11 worked fixture ($400k loan), Mountain View purchase scenario, 5 years of FRED benchmarks, and RateAPI market snapshots.
 ├── static/
@@ -45,6 +47,8 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
     │   └── Master HTML skeleton with navigation bar, responsive drawer, and methodology footer.
     ├── [compare.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/compare.html)
     │   └── Option comparison matrix page with hold period dropdown and Live Market Offers modal launcher.
+    ├── [data_sources.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/data_sources.html)
+    │   └── Raw data inventory and cache dump with live text search, product filters, sortable column headers, CSV/JSON export, and decision query payload inspection.
     ├── [projected_costs.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/projected_costs.html)
     │   └── Interactive holding horizon slider, discount rate input, KPI summary cards, and 3 Chart.js graphs.
     ├── [scenario_form.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_form.html)

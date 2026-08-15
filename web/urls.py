@@ -61,6 +61,7 @@ urlpatterns = [
         name="scenario_seed_from_cache",
     ),
     path("rate-watch/", views.rate_watch, name="rate_watch"),
+    path("data-sources/", views.data_sources, name="data_sources"),
     path("learn/", views.learn, name="learn"),
 ]
 

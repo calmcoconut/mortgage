@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}RateAPI Data Sources & Local Cache Dump — Mortgage Compass{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+  <div>
+    <h1 class="page-title">RateAPI data sources & local cache dump</h1>
+    <p class="page-subtitle">
+      Raw inventory of all conforming mortgage quotes, credit union rate snapshots, and cached API responses stored in your local database.
+    </p>
+  </div>
+
+  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <a href="{% url 'web:rate_watch' %}?refresh=1" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 6px;">
+      <span>🔄</span>
+      <span>Sync Live Rates</span>
+    </a>
+    <button type="button" id="btnExportCsv" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px;">
+      <span>⬇️</span>
+      <span>Export CSV</span>
+    </button>
+    <button type="button" id="btnCopyJson" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px;">
+      <span>📋</span>
+      <span>Copy JSON</span>
+    </button>
+  </div>
+</div>
+
+<!-- Summary Metric Cards -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Cached Quotes</div>
+    <div class="kpi-value" id="kpiTotalCount" style="color: var(--primary);">{{ total_snapshots }}</div>
+    <div class="kpi-subtext">{{ unique_lenders_count }} unique institutions</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label">RateAPI Monthly Quota</div>
+    <div class="kpi-value" style="color: {% if budget.can_call %}var(--success){% else %}var(--danger){% endif %};">
+      {{ budget.call_count }} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ {{ budget.safety_threshold }}</span>
+    </div>
+    <div class="kpi-subtext">Calls used this month (Safety guard: 18)</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label">Local Cache TTL</div>
+    <div class="kpi-value" style="color: var(--text-primary);">{{ cache_ttl_days }} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">Days</span></div>
+    <div class="kpi-subtext">1-Week automatic offline quote reuse</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label">Target Location</div>
+    <div class="kpi-value" style="color: var(--text-primary); font-size: 1.35rem;">
+      {{ default_state }}{% if default_county %} · {{ default_county }}{% endif %}
+    </div>
+    <div class="kpi-subtext">{{ cached_queries_count }} decision queries stored</div>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px;">
+  <button type="button" id="tabSnapshotsBtn" class="btn btn-sm" style="border-bottom: 2px solid var(--primary); border-radius: 4px 4px 0 0; background: var(--bg-card); font-weight: 600; padding: 8px 16px;">
+    🏛️ Rate Snapshots ({{ total_snapshots }})
+  </button>
+  <button type="button" id="tabCacheBtn" class="btn btn-sm" style="border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; background: transparent; color: var(--text-muted); font-weight: 500; padding: 8px 16px;">
+    ⚡ Decision Query Payloads ({{ cached_queries_count }})
+  </button>
+</div>
+
+<!-- SECTION 1: Raw Rate Snapshots Table -->
+<div id="sectionSnapshots">
+  <div class="card" style="padding: 20px; margin-bottom: 32px;">
+    <!-- Toolbar: Search & Filters -->
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+      <!-- Search input -->
+      <div style="flex: 1; min-width: 240px; position: relative;">
+        <input type="text"
+               id="snapshotSearchInput"
+               class="form-control"
+               placeholder="🔍 Search institution, product, or charter..."
+               style="padding-left: 12px; font-size: 0.875rem;">
+      </div>
+
+      <!-- Product filter -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 0.825rem; color: var(--text-muted); font-weight: 500;">Product:</span>
+        <select id="snapshotProductFilter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+          <option value="all">All Products</option>
+          <option value="30-year-fixed">30Y Fixed</option>
+          <option value="15-year-fixed">15Y Fixed</option>
+          <option value="10-year-fixed">10Y Fixed</option>
+          <option value="7-1-arm">7/1 ARM</option>
+          <option value="5-1-arm">5/1 ARM</option>
+          <option value="3-1-arm">3/1 ARM</option>
+        </select>
+      </div>
+
+      <!-- State filter -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 0.825rem; color: var(--text-muted); font-weight: 500;">State:</span>
+        <select id="snapshotStateFilter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+          <option value="all">All States</option>
+          {% for st in unique_states %}
+            <option value="{{ st }}">{{ st }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Confidence filter -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 0.825rem; color: var(--text-muted); font-weight: 500;">Confidence:</span>
+        <select id="snapshotConfidenceFilter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+          <option value="all">All</option>
+          <option value="high">High (≥ 70%)</option>
+          <option value="warning">Warning (&lt; 70%)</option>
+        </select>
+      </div>
+
+      <!-- Reset button -->
+      <button type="button" id="btnResetFilters" class="btn btn-outline btn-sm" style="font-size: 0.8rem; padding: 5px 10px;">
+        Reset
+      </button>
+    </div>
+
+    <!-- Active matches indicator -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; color: var(--text-muted);">
+      <div id="resultsCountLabel">Showing {{ total_snapshots }} of {{ total_snapshots }} snapshots</div>
+      <div style="font-size: 0.775rem;">💡 Click any column header to sort</div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="table-container" style="overflow-x: auto; max-height: 650px;">
+      <table id="rawDataTable" class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+        <thead>
+          <tr style="background: var(--bg-hover); position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border-color);">
+            <th data-sort="lender" style="cursor: pointer; padding: 12px 14px; text-align: left; user-select: none;">
+              Institution / Lender <span class="sort-icon" id="sort_lender">↕</span>
+            </th>
+            <th data-sort="product_type" style="cursor: pointer; padding: 12px 14px; text-align: left; user-select: none;">
+              Product <span class="sort-icon" id="sort_product_type">↕</span>
+            </th>
+            <th data-sort="rate" style="cursor: pointer; padding: 12px 14px; text-align: right; user-select: none;">
+              Note Rate <span class="sort-icon" id="sort_rate">▲</span>
+            </th>
+            <th data-sort="apr" style="cursor: pointer; padding: 12px 14px; text-align: right; user-select: none;">
+              APR <span class="sort-icon" id="sort_apr">↕</span>
+            </th>
+            <th data-sort="points" style="cursor: pointer; padding: 12px 14px; text-align: right; user-select: none;">
+              Points <span class="sort-icon" id="sort_points">↕</span>
+            </th>
+            <th data-sort="state" style="cursor: pointer; padding: 12px 14px; text-align: center; user-select: none;">
+              State <span class="sort-icon" id="sort_state">↕</span>
+            </th>
+            <th data-sort="confidence_score" style="cursor: pointer; padding: 12px 14px; text-align: center; user-select: none;">
+              Confidence <span class="sort-icon" id="sort_confidence_score">↕</span>
+            </th>
+            <th data-sort="observed_on" style="cursor: pointer; padding: 12px 14px; text-align: left; user-select: none;">
+              Observed <span class="sort-icon" id="sort_observed_on">↕</span>
+            </th>
+            <th style="padding: 12px 14px; text-align: left;">Eligibility & Field of Membership</th>
+            <th style="padding: 12px 14px; text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="rawDataTableBody">
+          <!-- Populated dynamically by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: Cached Decisions Payloads -->
+<div id="sectionCache" style="display: none;">
+  <div class="card" style="padding: 20px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0; font-size: 1.1rem;">RateAPI Decision Cache (7-Day TTL)</h3>
+      <span class="pill-badge pill-badge-blue">{{ cached_queries_count }} Cached Decisions</span>
+    </div>
+
+    {% if cached_queries %}
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for query in cached_queries %}
+          <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; background: var(--bg-hover);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <div style="font-weight: 600; font-family: monospace; font-size: 0.95rem; color: var(--primary);">
+                  {{ query.cache_key }}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                  Query: <strong>{{ query.query_state }}</strong> · ${{ query.query_amount_bucket|floatformat:0|intcomma }} Bucket · {{ query.query_term_months }} Months ({{ query.query_intent }})
+                </div>
+              </div>
+              <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+                <div>Cached: <strong>{{ query.cached_at|date:"Y-m-d H:i" }} UTC</strong></div>
+                <div>Expires: <strong>{{ query.expires_at|date:"Y-m-d H:i" }} UTC</strong></div>
+              </div>
+            </div>
+
+            <details style="margin-top: 10px;">
+              <summary style="cursor: pointer; font-size: 0.825rem; color: var(--primary); font-weight: 500;">
+                View Raw JSON Response ({{ query.response_payload.actions.0.offers|length|default:"0" }} offers)
+              </summary>
+              <pre style="background: var(--bg-card); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.775rem; overflow-x: auto; margin-top: 8px; max-height: 350px;">{{ query.response_payload|pprint }}</pre>
+            </details>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="text-align: center; padding: 32px; color: var(--text-muted);">
+        No decision queries cached yet. Run a scenario preview or click "Live Market Offers" to cache quotes.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function() {
+  const allSnapshots = {{ snapshots_json|safe }};
+  let currentSort = { column: 'rate', ascending: true };
+
+  // Tab switching
+  const tabSnapshotsBtn = document.getElementById('tabSnapshotsBtn');
+  const tabCacheBtn = document.getElementById('tabCacheBtn');
+  const sectionSnapshots = document.getElementById('sectionSnapshots');
+  const sectionCache = document.getElementById('sectionCache');
+
+  tabSnapshotsBtn.addEventListener('click', () => {
+    sectionSnapshots.style.display = 'block';
+    sectionCache.style.display = 'none';
+    tabSnapshotsBtn.style.borderBottom = '2px solid var(--primary)';
+    tabSnapshotsBtn.style.color = 'var(--text-primary)';
+    tabSnapshotsBtn.style.background = 'var(--bg-card)';
+    tabCacheBtn.style.borderBottom = '2px solid transparent';
+    tabCacheBtn.style.color = 'var(--text-muted)';
+    tabCacheBtn.style.background = 'transparent';
+  });
+
+  tabCacheBtn.addEventListener('click', () => {
+    sectionSnapshots.style.display = 'none';
+    sectionCache.style.display = 'block';
+    tabCacheBtn.style.borderBottom = '2px solid var(--primary)';
+    tabCacheBtn.style.color = 'var(--text-primary)';
+    tabCacheBtn.style.background = 'var(--bg-card)';
+    tabSnapshotsBtn.style.borderBottom = '2px solid transparent';
+    tabSnapshotsBtn.style.color = 'var(--text-muted)';
+    tabSnapshotsBtn.style.background = 'transparent';
+  });
+
+  // Filter & Sort Controllers
+  const searchInput = document.getElementById('snapshotSearchInput');
+  const productFilter = document.getElementById('snapshotProductFilter');
+  const stateFilter = document.getElementById('snapshotStateFilter');
+  const confidenceFilter = document.getElementById('snapshotConfidenceFilter');
+  const btnResetFilters = document.getElementById('btnResetFilters');
+  const tableBody = document.getElementById('rawDataTableBody');
+  const resultsCountLabel = document.getElementById('resultsCountLabel');
+
+  function getFilteredSnapshots() {
+    const query = (searchInput.value || '').trim().toLowerCase();
+    const product = productFilter.value;
+    const state = stateFilter.value;
+    const confidence = confidenceFilter.value;
+
+    return allSnapshots.filter(item => {
+      // Text search
+      if (query) {
+        const fullText = `${item.lender} ${item.product_name} ${item.product_type} ${item.eligibility_summary}`.toLowerCase();
+        if (!fullText.includes(query)) return false;
+      }
+
+      // Product filter
+      if (product !== 'all' && item.product_type !== product) {
+        return false;
+      }
+
+      // State filter
+      if (state !== 'all' && item.state !== state) {
+        return false;
+      }
+
+      // Confidence filter
+      if (confidence === 'high' && item.confidence_score < 0.70) return false;
+      if (confidence === 'warning' && item.confidence_score >= 0.70) return false;
+
+      return true;
+    });
+  }
+
+  function sortSnapshots(items) {
+    const { column, ascending } = currentSort;
+    return items.slice().sort((a, b) => {
+      let valA = a[column];
+      let valB = b[column];
+
+      if (valA === null || valA === undefined) valA = '';
+      if (valB === null || valB === undefined) valB = '';
+
+      if (typeof valA === 'string') {
+        const comp = valA.localeCompare(valB);
+        return ascending ? comp : -comp;
+      } else {
+        const comp = valA < valB ? -1 : (valA > valB ? 1 : 0);
+        return ascending ? comp : -comp;
+      }
+    });
+  }
+
+  function renderTable() {
+    const filtered = getFilteredSnapshots();
+    const sorted = sortSnapshots(filtered);
+
+    resultsCountLabel.textContent = `Showing ${sorted.length} of ${allSnapshots.length} snapshots`;
+
+    if (sorted.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="padding: 36px; text-align: center; color: var(--text-muted);">
+            No rate snapshots match your selected filters.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = sorted.map(item => {
+      const confPercent = Math.round(item.confidence_score * 100);
+      const confBadgeClass = item.confidence_category === 'high' ? 'pill-badge-green' : 'pill-badge-amber';
+      const aprText = item.apr ? `${item.apr.toFixed(3)}%` : '—';
+      const pointsText = item.points ? `${item.points.toFixed(3)}%` : '0.000%';
+
+      return `
+        <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.15s ease;">
+          <td style="padding: 10px 14px; font-weight: 600; color: var(--text-primary);">
+            ${escapeHtml(item.lender)}
+          </td>
+          <td style="padding: 10px 14px;">
+            <span class="pill-badge pill-badge-gray" style="font-size: 0.775rem;">
+              ${escapeHtml(item.product_name || item.product_type)}
+            </span>
+          </td>
+          <td style="padding: 10px 14px; text-align: right; font-weight: 700; color: #2563eb;">
+            ${item.rate.toFixed(3)}%
+          </td>
+          <td style="padding: 10px 14px; text-align: right; font-weight: 600; color: #7c3aed;">
+            ${aprText}
+          </td>
+          <td style="padding: 10px 14px; text-align: right; color: var(--text-muted);">
+            ${pointsText}
+          </td>
+          <td style="padding: 10px 14px; text-align: center;">
+            <span style="font-weight: 600; font-size: 0.8rem;">${escapeHtml(item.state)}</span>
+          </td>
+          <td style="padding: 10px 14px; text-align: center;">
+            <span class="pill-badge ${confBadgeClass}" style="font-size: 0.75rem; padding: 2px 8px;">
+              ${confPercent}%
+            </span>
+          </td>
+          <td style="padding: 10px 14px; color: var(--text-muted); font-size: 0.8rem; white-space: nowrap;">
+            ${escapeHtml(item.observed_on || '—')}
+          </td>
+          <td style="padding: 10px 14px; font-size: 0.8rem; color: var(--text-muted); max-width: 260px; line-height: 1.35;">
+            ${escapeHtml(item.eligibility_summary || '—')}
+          </td>
+          <td style="padding: 10px 14px; text-align: center; white-space: nowrap;">
+            <button type="button"
+                    class="btn btn-outline btn-sm copy-btn"
+                    data-lender="${escapeHtml(item.lender)}"
+                    style="padding: 3px 8px; font-size: 0.75rem;">
+              Copy
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach copy button handlers
+    tableBody.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.getAttribute('data-lender');
+        navigator.clipboard.writeText(text).then(() => {
+          const original = btn.textContent;
+          btn.textContent = '✓ Copied';
+          btn.style.borderColor = 'var(--success)';
+          btn.style.color = 'var(--success)';
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.style.borderColor = '';
+            btn.style.color = '';
+          }, 1500);
+        });
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+  }
+
+  function updateSortIcons() {
+    document.querySelectorAll('th[data-sort] .sort-icon').forEach(icon => {
+      icon.textContent = '↕';
+      icon.style.color = 'var(--text-muted)';
+    });
+    const activeIcon = document.getElementById(`sort_${currentSort.column}`);
+    if (activeIcon) {
+      activeIcon.textContent = currentSort.ascending ? '▲' : '▼';
+      activeIcon.style.color = 'var(--primary)';
+    }
+  }
+
+  // Column header sort listeners
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.getAttribute('data-sort');
+      if (currentSort.column === col) {
+        currentSort.ascending = !currentSort.ascending;
+      } else {
+        currentSort.column = col;
+        currentSort.ascending = true;
+      }
+      updateSortIcons();
+      renderTable();
+    });
+  });
+
+  // Filter change listeners
+  searchInput.addEventListener('input', renderTable);
+  searchInput.addEventListener('keyup', renderTable);
+  searchInput.addEventListener('change', renderTable);
+  productFilter.addEventListener('change', renderTable);
+  stateFilter.addEventListener('change', renderTable);
+  confidenceFilter.addEventListener('change', renderTable);
+
+  btnResetFilters.addEventListener('click', () => {
+    searchInput.value = '';
+    productFilter.value = 'all';
+    stateFilter.value = 'all';
+    confidenceFilter.value = 'all';
+    currentSort = { column: 'rate', ascending: true };
+    updateSortIcons();
+    renderTable();
+  });
+
+  // Export JSON handler
+  document.getElementById('btnCopyJson').addEventListener('click', () => {
+    const visibleData = sortSnapshots(getFilteredSnapshots());
+    const jsonStr = JSON.stringify(visibleData, null, 2);
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      const btn = document.getElementById('btnCopyJson');
+      btn.textContent = '✓ JSON Copied';
+      setTimeout(() => { btn.innerHTML = '<span>📋</span><span>Copy JSON</span>'; }, 2000);
+    });
+  });
+
+  // Export CSV handler
+  document.getElementById('btnExportCsv').addEventListener('click', () => {
+    const visibleData = sortSnapshots(getFilteredSnapshots());
+    if (!visibleData.length) return;
+
+    const headers = ['Lender', 'Product', 'Product Type', 'Note Rate (%)', 'APR (%)', 'Points (%)', 'State', 'Confidence', 'Observed Date', 'Eligibility'];
+    const rows = visibleData.map(d => [
+      `"${(d.lender || '').replace(/"/g, '""')}"`,
+      `"${(d.product_name || '').replace(/"/g, '""')}"`,
+      `"${(d.product_type || '').replace(/"/g, '""')}"`,
+      d.rate,
+      d.apr || '',
+      d.points || '0',
+      `"${d.state || ''}"`,
+      d.confidence_score,
+      `"${d.observed_on || ''}"`,
+      `"${(d.eligibility_summary || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `rateapi_snapshots_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  // Initial render
+  updateSortIcons();
+  renderTable();
+})();
+</script>
+{% endblock %}
