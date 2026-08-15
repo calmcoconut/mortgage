@@ -184,3 +184,50 @@ def test_anomaly_filtering():
     assert offers[0]["confidence_category"] == "high"
     assert offers[1]["credit_union_name"] == "Low Confidence CU"
     assert offers[1]["confidence_category"] == "warning"
+
+
+@pytest.mark.django_db
+def test_configurable_cache_ttl_and_snapshot_ingest():
+    from web.models import RateApiSnapshotModel
+
+    adapter = RateApiAdapter(api_key="test_key", cache_ttl_days=14)
+    assert adapter.cache_ttl_days == 14
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "actions": [
+            {
+                "offers": [
+                    {
+                        "credit_union_name": "San Jose Federal CU",
+                        "product_name": "30-Year Fixed Conforming",
+                        "rate": 5.75,
+                        "apr": 5.80,
+                        "points": 0.0,
+                        "eligibility": {"confidence": 0.92, "status": "likely_eligible"},
+                    }
+                ]
+            }
+        ]
+    }
+
+    with patch("requests.post", return_value=mock_resp):
+        res = adapter.fetch_decisions(
+            state="CA",
+            amount=Decimal("600000"),
+            term_months=360,
+        )
+
+    assert not res["from_cache"]
+
+    # Verify Cache entry has 14-day expiration
+    cache_entry = RateApiCacheModel.objects.get(cache_key="CA_purchase_600000_360")
+    delta_days = (cache_entry.expires_at - cache_entry.cached_at).days
+    assert delta_days == 14
+
+    # Verify offer was ingested into RateApiSnapshotModel
+    snap = RateApiSnapshotModel.objects.get(lender="San Jose Federal CU", product_type="30-year-fixed")
+    assert snap.rate == Decimal("5.750")
+    assert snap.apr == Decimal("5.800")
+    assert snap.confidence_score == Decimal("0.920")

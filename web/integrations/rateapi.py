@@ -33,6 +33,7 @@ class RateApiAdapter:
         api_key: str | None = None,
         bucket_size: int | None = None,
         safety_threshold: int | None = None,
+        cache_ttl_days: int | None = None,
     ):
         self.api_key = (
             api_key
@@ -48,6 +49,11 @@ class RateApiAdapter:
             safety_threshold
             if safety_threshold is not None
             else getattr(settings, "RATEAPI_SAFETY_THRESHOLD", 18)
+        )
+        self.cache_ttl_days = (
+            cache_ttl_days
+            if cache_ttl_days is not None
+            else getattr(settings, "RATEAPI_CACHE_TTL_DAYS", 7)
         )
 
     def get_budget_status(self) -> dict[str, Any]:
@@ -231,7 +237,7 @@ class RateApiAdapter:
 
         data = resp.json()
 
-        # 4. Save to Cache (24h TTL)
+        # 4. Save to Cache (Configurable TTL, default: 7 days / 1 week)
         RateApiCacheModel.objects.update_or_create(
             cache_key=cache_key,
             defaults={
@@ -241,7 +247,7 @@ class RateApiAdapter:
                 "query_term_months": term_months,
                 "response_payload": data,
                 "cached_at": now,
-                "expires_at": now + timedelta(hours=24),
+                "expires_at": now + timedelta(days=self.cache_ttl_days),
             },
         )
 
@@ -262,6 +268,43 @@ class RateApiAdapter:
         raw_actions = data.get("actions", [])
         raw_offers = raw_actions[0].get("offers", []) if raw_actions else []
 
+        # 6. Maximize Data Capture: Ingest returned offers into durable SQLite snapshots
+        for off in raw_offers:
+            lender_name = off.get("credit_union_name") or off.get("lender")
+            if not lender_name:
+                continue
+            p_name = off.get("product_name") or off.get("display_name") or f"{term_months // 12}Y Fixed"
+            p_type = "30-year-fixed" if term_months >= 300 else f"{term_months // 12}-year-fixed"
+            elig_obj = off.get("eligibility") or {}
+            req_sum = elig_obj.get("requirements_summary", "")
+
+            try:
+                r_val = Decimal(str(off.get("rate", 0)))
+                a_val = Decimal(str(off.get("apr", r_val)))
+                pts_val = Decimal(str(off.get("points", 0)))
+                conf_val = Decimal(
+                    str(off.get("confidence_score") or elig_obj.get("confidence") or 0.85)
+                )
+            except (InvalidOperation, ValueError, TypeError):
+                continue
+
+            RateApiSnapshotModel.objects.update_or_create(
+                lender=lender_name,
+                product_type=p_type,
+                state=state.upper(),
+                observed_on=now.date(),
+                defaults={
+                    "product_name": p_name,
+                    "loan_program": "conventional",
+                    "rate": r_val,
+                    "apr": a_val,
+                    "points": pts_val,
+                    "fetched_at": now,
+                    "confidence_score": conf_val,
+                    "eligibility_summary": req_sum,
+                },
+            )
+
         return {
             "from_cache": False,
             "cached_at": now,
@@ -278,8 +321,11 @@ class RateApiAdapter:
         today = now.date()
 
         if not force_refresh:
+            min_valid_date = today - timedelta(days=self.cache_ttl_days)
             existing = list(
-                RateApiSnapshotModel.objects.filter(state=state.upper(), observed_on=today)
+                RateApiSnapshotModel.objects.filter(
+                    state=state.upper(), observed_on__gte=min_valid_date
+                )
             )
             if existing:
                 return existing
