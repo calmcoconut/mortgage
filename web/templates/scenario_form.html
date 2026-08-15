@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_create %}New Scenario{% else %}Edit {{ scenario.name }}{% endif %} — Mortgage Compass{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+  <div class="page-header">
+    <h1 class="page-title">{% if is_create %}Create Financing Scenario{% else %}Edit Scenario Details{% endif %}</h1>
+    <p class="page-subtitle">Configure property value, loan amounts, and housing cash-flow context.</p>
+  </div>
+
+  <form method="post" class="card" style="padding: 28px;">
+    {% csrf_token %}
+
+    {% if form.errors %}
+      <div style="background: #fee2e2; border: 1px solid #f87171; color: #b91c1c; padding: 14px; border-radius: var(--radius-md); margin-bottom: 20px;">
+        <strong>Please correct the errors below:</strong>
+        <ul>
+          {% for field, errors in form.errors.items %}
+            <li>{{ field }}: {{ errors|join:", " }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div style="margin-bottom: 24px;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 16px;">1. Loan & Property Core</h3>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label class="form-label">Scenario Name</label>
+          {{ form.name }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Purpose</label>
+          {{ form.purpose }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Program Type</label>
+          {{ form.program }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Property Type</label>
+          {{ form.property_type }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Home Price / Property Value ($)</label>
+          <input type="number" name="property_value" id="id_property_value" class="form-input" 
+                 value="{{ form.property_value.value|default:'' }}" step="1000"
+                 hx-post="{% url 'web:scenario_screen_preview' %}"
+                 hx-trigger="input delay:300ms, change"
+                 hx-target="#screening-preview-container"
+                 hx-include="closest form">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Loan Amount ($)</label>
+          <input type="number" name="loan_amount" id="id_loan_amount" class="form-input"
+                 value="{{ form.loan_amount.value|default:'' }}" step="1000"
+                 hx-post="{% url 'web:scenario_screen_preview' %}"
+                 hx-trigger="input delay:300ms, change"
+                 hx-target="#screening-preview-container"
+                 hx-include="closest form">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Down Payment ($)</label>
+          {{ form.down_payment }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Loan Term (Months)</label>
+          {{ form.term_months }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Expected Horizon (Months)</label>
+          {{ form.expected_horizon_months }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">State</label>
+          {{ form.state }}
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 16px;">2. Financial Profile & Screening</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Gross Monthly Income ($)</label>
+          <input type="number" name="gross_monthly_income" id="id_gross_monthly_income" class="form-input"
+                 value="{{ form.gross_monthly_income.value|default:'' }}" step="100"
+                 hx-post="{% url 'web:scenario_screen_preview' %}"
+                 hx-trigger="input delay:300ms, change"
+                 hx-target="#screening-preview-container"
+                 hx-include="closest form">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Recurring Monthly Debts ($)</label>
+          <input type="number" name="recurring_monthly_debts" id="id_recurring_monthly_debts" class="form-input"
+                 value="{{ form.recurring_monthly_debts.value|default:'' }}" step="50"
+                 hx-post="{% url 'web:scenario_screen_preview' %}"
+                 hx-trigger="input delay:300ms, change"
+                 hx-target="#screening-preview-container"
+                 hx-include="closest form">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Credit Score Band (FICO)</label>
+          {{ form.fico_band }}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Occupancy</label>
+          {{ form.occupancy }}
+        </div>
+      </div>
+
+      <!-- HTMX live screening preview container -->
+      <div id="screening-preview-container">
+        {% include "partials/screening_result.html" with screening_results=screening_results dti_display=None ltv_display=None %}
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px;">3. Monthly Context (Excluded from Financing Cost)</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Property tax, insurance, and HOA are property-level context and are not counted towards loan financing cost.</p>
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Property Tax ($/mo)</label>
+          {{ form.estimated_property_tax_monthly }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Homeowners Insurance ($/mo)</label>
+          {{ form.estimated_homeowners_insurance_monthly }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">HOA Dues ($/mo)</label>
+          {{ form.estimated_hoa_monthly }}
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <div>
+        {% if not is_create %}
+          <a href="{% url 'web:scenario_delete' scenario_id=scenario.id %}" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fca5a5;">Delete Scenario</a>
+        {% endif %}
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <a href="{% url 'web:scenario_list' %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save Scenario</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

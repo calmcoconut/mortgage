@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Learn — Mortgage Compass Methodology{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+  <div class="page-header">
+    <h1 class="page-title">Mortgage Compass Methodology</h1>
+    <p class="page-subtitle">Understand the math behind financing cost calculations, points break-even, and screening rules.</p>
+  </div>
+
+  <div class="card" style="padding: 32px; margin-bottom: 24px;">
+    <h2 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">1. Fixed-Rate Amortization Formula</h2>
+    <p style="color: #475569; margin-bottom: 12px;">
+      Monthly principal and interest (P&I) payment is calculated using exact Decimal precision:
+    </p>
+    <div style="background: #f8fafc; padding: 16px; border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; margin-bottom: 16px; border: 1px solid var(--border-color);">
+      r = Annual Rate / 12<br>
+      P = LoanAmount × [ r(1 + r)ⁿ ] / [ (1 + r)ⁿ - 1 ]
+    </div>
+    <p style="color: #475569; font-size: 0.9rem;">
+      In the final month, the principal payment is explicitly reconciled against the remaining balance so that the final loan balance reaches exactly $0.00.
+    </p>
+  </div>
+
+  <div class="card" style="padding: 32px; margin-bottom: 24px;">
+    <h2 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">2. Financing Cost vs Cash-Flow Burden</h2>
+    <p style="color: #475569; margin-bottom: 12px;">
+      Mortgage Compass isolates the <em>true economic cost of financing</em> from equity accumulation and property-level taxes/insurance:
+    </p>
+    <div style="background: #f8fafc; padding: 16px; border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; margin-bottom: 16px; border: 1px solid var(--border-color);">
+      Net Upfront = (Points % × LoanAmount) - LenderCredits + LenderFees + UpfrontMI<br>
+      FinancingCost(h) = NetUpfront + Σ(Interest_i) + Σ(MonthlyMI_i)  [for i = 1 to h]
+    </div>
+    <ul style="color: #475569; font-size: 0.9rem; padding-left: 20px; line-height: 1.6;">
+      <li><strong>Principal repayment is excluded</strong> because every dollar paid toward principal builds home equity.</li>
+      <li><strong>Property taxes, homeowners insurance, and HOA dues are excluded</strong> from financing cost because they are property-specific rather than lender loan terms.</li>
+    </ul>
+  </div>
+
+  <div class="card" style="padding: 32px; margin-bottom: 24px;">
+    <h2 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">3. Points Break-Even Calculation</h2>
+    <p style="color: #475569; margin-bottom: 12px;">
+      The break-even month represents the exact month $h$ when the cumulative interest saved from a lower rate surpasses the upfront cost of discount points:
+    </p>
+    <div style="background: #f8fafc; padding: 16px; border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; margin-bottom: 16px; border: 1px solid var(--border-color);">
+      BreakEvenMonth = min { h | FinancingCost_candidate(h) &lt; FinancingCost_baseline(h) }
+    </div>
+  </div>
+
+  <div class="card" style="padding: 32px;">
+    <h2 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">4. Screening Sanity Check</h2>
+    <p style="color: #475569; font-size: 0.9rem; line-height: 1.6;">
+      The screening tool derives Debt-to-Income (DTI) from your proposed housing payment and recurring debts against your gross income. It evaluates standard Fannie Mae / Freddie Mac (Conventional), FHA, VA, and USDA parameters for planning sanity checks. It is explicitly not an automated underwriting system (AUS) decision or mortgage approval.
+    </p>
+  </div>
+</div>
+{% endblock %}

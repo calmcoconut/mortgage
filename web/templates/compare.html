@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Financing Paths — {{ scenario.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+  <div>
+    <h1 class="page-title">Compare financing paths</h1>
+    <p class="page-subtitle">Evaluate side-by-side financing costs, rates, and verified Loan Estimate terms.</p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 14px;">
+    <!-- Hold period dropdown -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="control-label" style="font-size: 0.85rem;">Hold period:</span>
+      <select class="form-select" style="width: auto; padding: 6px 12px; font-size: 0.875rem;"
+              onchange="window.location.href='?horizon=' + this.value;">
+        <option value="36" {% if horizon_months == 36 %}selected{% endif %}>3 years</option>
+        <option value="60" {% if horizon_months == 60 %}selected{% endif %}>5 years</option>
+        <option value="84" {% if horizon_months == 84 %}selected{% endif %}>7 years</option>
+        <option value="120" {% if horizon_months == 120 %}selected{% endif %}>10 years</option>
+        <option value="180" {% if horizon_months == 180 %}selected{% endif %}>15 years</option>
+        <option value="360" {% if horizon_months == 360 %}selected{% endif %}>30 years</option>
+      </select>
+    </div>
+
+    <!-- Lock pill -->
+    <div class="pill-badge pill-badge-gray" style="display: flex; align-items: center; gap: 4px; padding: 8px 12px;">
+      <span>Lock: 30 days</span>
+    </div>
+
+    <!-- Add Option Button -->
+    <a href="{% url 'web:option_create' scenario_id=scenario.id %}" class="btn btn-primary btn-sm">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      Add Loan Option
+    </a>
+  </div>
+</div>
+
+<div id="compare-matrix-wrapper">
+  {% include "partials/compare_matrix.html" %}
+</div>
+
+<div class="disclaimer-text">
+  Rates shown are estimates or user-provided offer terms, not offers of credit.
+</div>
+{% endblock %}

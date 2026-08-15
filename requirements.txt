@@ -1,0 +1,6 @@
+django>=5.1
+pytest>=8.0
+pytest-django>=4.9
+hypothesis>=6.100
+requests>=2.31
+gunicorn>=23.0

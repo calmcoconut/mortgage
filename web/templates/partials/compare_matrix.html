@@ -1,0 +1,175 @@
+{% load humanize %}
+<!-- Recommendation Banner -->
+{% if recommended_opt %}
+  <div class="recommendation-banner">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <span class="rec-title">Recommended for your {{ horizon_years }}-year horizon</span>
+        <div style="display: flex; gap: 6px;">
+          <span class="pill-badge pill-badge-teal">Teal</span>
+          <span class="pill-badge pill-badge-amber">Amber</span>
+          <span class="pill-badge pill-badge-gray">Gray</span>
+        </div>
+      </div>
+      <div class="rec-option-name">{{ recommended_opt.model.label }}</div>
+      {% if rec_savings_text %}
+        <div class="rec-savings">{{ rec_savings_text }}</div>
+      {% endif %}
+    </div>
+    <div>
+      <a href="{% url 'web:scenario_projected_costs' scenario_id=scenario.id %}?horizon={{ horizon_months }}" class="btn btn-outline btn-sm">
+        View Projected Costs &rarr;
+      </a>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Matrix Table -->
+<div class="matrix-container">
+  <table class="matrix-table">
+    <thead>
+      <tr>
+        <th class="col-header" style="width: 220px;"></th>
+        {% for item in options_data %}
+          <th class="{% if item.is_recommended %}option-col-highlight{% endif %}" style="min-width: 240px; vertical-align: top;">
+            <div class="option-col-header">
+              <span>{{ item.model.label }}</span>
+              {% if item.is_recommended %}
+                <span style="color: #0d9488;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                </span>
+              {% endif %}
+            </div>
+            <div class="option-source-label">
+              {% if item.model.source_type == 'loan_estimate' %}
+                Verified Loan Estimate, confirmed by you
+              {% else %}
+                Advertised observation, observed {{ item.model.entered_on|date:"M j" }}
+              {% endif %}
+            </div>
+          </th>
+        {% empty %}
+          <th style="padding: 24px; text-align: center; color: var(--text-muted);">
+            No options added yet. Click "Add Loan Option" below.
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Rate / APR -->
+      <tr>
+        <td class="col-header">Rate / APR</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 700; font-size: 1.05rem;">{{ item.rate_pct }}</span>
+              {% if item.apr_pct %}
+                <span class="pill-badge pill-badge-teal" style="font-size: 0.75rem;">APR {{ item.apr_pct }}</span>
+              {% else %}
+                <span class="pill-badge pill-badge-blue" style="font-size: 0.75rem;">Rate</span>
+              {% endif %}
+            </div>
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Points / credits -->
+      <tr>
+        <td class="col-header">Points / credits</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            {% if item.model.points_pct > 0 %}
+              <div style="font-weight: 600;">${{ item.points_dollars|floatformat:0|intcomma }} ({{ item.points_pct }})</div>
+            {% elif item.model.lender_credit > 0 %}
+              <div style="color: #0d9488; font-weight: 600;">-${{ item.model.lender_credit|floatformat:0|intcomma }} credit</div>
+            {% else %}
+              <div>$0 points</div>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Estimated monthly P&I -->
+      <tr>
+        <td class="col-header">Estimated monthly P&I</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <span style="font-weight: 700; font-size: 1.05rem;">${{ item.result.monthly_pi|floatformat:0|intcomma }}</span>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">/mo</span>
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Estimated financing cost at horizon -->
+      <tr>
+        <td class="col-header">
+          Estimated financing cost at {{ horizon_years }} years
+        </td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <div class="cost-highlight">${{ item.result.financing_cost_at_horizon|floatformat:0|intcomma }}</div>
+            {% if item.savings_vs_baseline and item.savings_vs_baseline > 0 %}
+              <div style="font-size: 0.8rem; color: #0d9488; font-weight: 600; margin-top: 2px;">
+                Saves ${{ item.savings_vs_baseline|floatformat:0|intcomma }} vs baseline
+              </div>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Data confidence -->
+      <tr>
+        <td class="col-header">Data confidence</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              {% if item.model.source_type == 'loan_estimate' %}
+                <span class="pill-badge pill-badge-teal" style="font-size: 0.75rem;">Verified</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Confirmed</span>
+              {% else %}
+                <span class="pill-badge pill-badge-amber" style="font-size: 0.75rem;">Advertised</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Manual entry</span>
+              {% endif %}
+            </div>
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Assumptions -->
+      <tr>
+        <td class="col-header">Assumptions</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <ul style="font-size: 0.825rem; color: #475569; padding-left: 16px; line-height: 1.4;">
+              <li>{{ item.model.term_months }} months amortization</li>
+              {% if item.model.monthly_mi %}
+                <li>${{ item.model.monthly_mi|floatformat:0|intcomma }}/mo mortgage insurance</li>
+              {% endif %}
+              {% if item.model.lender_fees %}
+                <li>${{ item.model.lender_fees|floatformat:0|intcomma }} lender fees</li>
+              {% endif %}
+              {% if item.model.notes %}
+                <li>{{ item.model.notes }}</li>
+              {% endif %}
+            </ul>
+          </td>
+        {% endfor %}
+      </tr>
+
+      <!-- Actions -->
+      <tr>
+        <td class="col-header">Actions</td>
+        {% for item in options_data %}
+          <td class="{% if item.is_recommended %}option-col-highlight{% endif %}">
+            <div style="display: flex; gap: 8px;">
+              <a href="{% url 'web:option_edit' scenario_id=scenario.id option_id=item.model.id %}" class="btn btn-outline btn-sm">Edit</a>
+              <a href="{% url 'web:option_delete' scenario_id=scenario.id option_id=item.model.id %}" class="btn btn-outline btn-sm" style="color: #ef4444;">Delete</a>
+            </div>
+          </td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+</div>

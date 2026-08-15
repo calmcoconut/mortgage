@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Option — {{ scenario.name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto;">
+  <div class="card" style="padding: 28px; text-align: center;">
+    <h2 style="font-size: 1.3rem; font-weight: 700; color: #0f172a; margin-bottom: 12px;">Delete Option?</h2>
+    <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 0.95rem;">
+      Are you sure you want to delete <strong>{{ option.label }}</strong>? This action cannot be undone.
+    </p>
+
+    <form method="post" style="display: flex; justify-content: center; gap: 12px;">
+      {% csrf_token %}
+      <a href="{% url 'web:scenario_compare' scenario_id=scenario.id %}" class="btn btn-outline">Cancel</a>
+      <button type="submit" class="btn btn-danger">Delete Option</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

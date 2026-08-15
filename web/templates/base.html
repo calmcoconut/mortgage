@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Mortgage Compass — Personal Mortgage Comparison{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <!-- Local HTMX & Chart.js -->
+  <script src="{% static 'js/htmx.min.js' %}"></script>
+  <script src="{% static 'js/chart.umd.min.js' %}"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+          </svg>
+        </div>
+        <div class="brand-title">Mortgage Compass</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        {% if scenario %}
+          <a href="{% url 'web:scenario_compare' scenario_id=scenario.id %}" class="nav-item {% if request.resolver_match.url_name == 'scenario_compare' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+              <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+              <path d="M7 21h10"></path>
+              <path d="M12 3v18"></path>
+              <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path>
+            </svg>
+            Compare
+          </a>
+
+          <a href="{% url 'web:scenario_projected_costs' scenario_id=scenario.id %}" class="nav-item {% if request.resolver_match.url_name == 'scenario_projected_costs' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="m3 9 9 7 9-7"></path>
+              <path d="M3 15h18"></path>
+            </svg>
+            Projected Costs
+          </a>
+        {% endif %}
+
+        <a href="{% url 'web:scenario_list' %}" class="nav-item {% if request.resolver_match.url_name == 'scenario_list' %}active{% endif %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="7" height="7" x="3" y="3" rx="1"></rect>
+            <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+            <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+            <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+          </svg>
+          My Scenarios
+        </a>
+
+        <a href="{% url 'web:rate_watch' %}" class="nav-item {% if request.resolver_match.url_name == 'rate_watch' %}active{% endif %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"></path>
+            <path d="m19 9-5 5-4-4-3 3"></path>
+          </svg>
+          Rate Watch
+        </a>
+
+        <a href="{% url 'web:learn' %}" class="nav-item {% if request.resolver_match.url_name == 'learn' %}active{% endif %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" x2="12" y1="8" y2="12"></line>
+            <line x1="12" x2="12.01" y1="16" y2="16"></line>
+          </svg>
+          Learn
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      {% if scenario %}
+        <header class="top-bar">
+          <div class="scenario-summary-pill">
+            <span>{{ scenario.name }}</span>
+            <span style="color: var(--text-subtle);">·</span>
+            <span>${{ scenario.loan_amount|floatformat:0 }} loan</span>
+            <span style="color: var(--text-subtle);">·</span>
+            <span>
+              {% if scenario.property_value %}
+                {% widthratio scenario.down_payment scenario.property_value 100 %}% down
+              {% endif %}
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <a href="{% url 'web:scenario_edit' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">
+              Edit Scenario
+            </a>
+          </div>
+        </header>
+      {% endif %}
+
+      <main class="content-container">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,14 @@
+services:
+  mortgage-compass:
+    build: .
+    container_name: mortgage-compass
+    restart: unless-stopped
+    ports:
+      - "8085:8000"
+    environment:
+      - DJANGO_DEBUG=False
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production-random-secret-key}
+      - DATABASE_PATH=/data/db.sqlite3
+      - FRED_API_KEY=${FRED_API_KEY:-}
+    volumes:
+      - ./data:/data
