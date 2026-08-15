@@ -54,7 +54,19 @@
 
 <div class="chart-card">
   <div class="chart-header">
-    <h3 class="chart-title">Historical Benchmark Trend (FRED Weekly)</h3>
+    <div>
+      <h3 class="chart-title">Historical Benchmark Trend (FRED Weekly)</h3>
+    </div>
+    <div class="chart-toolbar">
+      <span class="chart-hint">Scroll / drag to zoom & pan</span>
+      <button type="button" class="btn-zoom-reset" onclick="if(window.fredChart) fredChart.resetZoom()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        Reset Timeline
+      </button>
+    </div>
   </div>
   <div class="chart-canvas-wrapper" style="height: 350px;">
     <canvas id="fredChart"></canvas>
@@ -74,7 +86,7 @@
 
   if (dates && dates.length > 0) {
     const ctx = document.getElementById('fredChart').getContext('2d');
-    new Chart(ctx, {
+    window.fredChart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: dates,
@@ -109,6 +121,23 @@
           tooltip: {
             callbacks: {
               label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
+            }
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'x',
+              threshold: 5
+            },
+            zoom: {
+              wheel: {
+                enabled: true,
+                speed: 0.08
+              },
+              pinch: {
+                enabled: true
+              },
+              mode: 'x'
             }
           }
         },

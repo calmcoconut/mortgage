@@ -89,7 +89,19 @@
     <!-- Main Cumulative Financing Cost Chart -->
     <div class="chart-card">
       <div class="chart-header">
-        <h3 class="chart-title">Interactive cumulative financing cost chart</h3>
+        <div>
+          <h3 class="chart-title">Interactive cumulative financing cost chart</h3>
+        </div>
+        <div class="chart-toolbar">
+          <span class="chart-hint">Scroll / drag to zoom & pan</span>
+          <button type="button" class="btn-zoom-reset" onclick="costChart.resetZoom()">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            Reset View
+          </button>
+        </div>
       </div>
       <div class="chart-canvas-wrapper" style="height: 320px;">
         <canvas id="cumulativeCostChart"></canvas>
@@ -102,6 +114,11 @@
       <div class="chart-card">
         <div class="chart-header">
           <h3 class="chart-title" style="font-size: 0.95rem;">Monthly payment composition</h3>
+          <div class="chart-toolbar">
+            <button type="button" class="btn-zoom-reset" id="resetCompZoomBtn" onclick="if(window.compChart) compChart.resetZoom()">
+              Reset
+            </button>
+          </div>
         </div>
         <div class="chart-canvas-wrapper" style="height: 200px;">
           <canvas id="paymentCompositionChart"></canvas>
@@ -112,6 +129,11 @@
       <div class="chart-card">
         <div class="chart-header">
           <h3 class="chart-title" style="font-size: 0.95rem;">Remaining loan balance</h3>
+          <div class="chart-toolbar">
+            <button type="button" class="btn-zoom-reset" id="resetBalZoomBtn" onclick="if(window.balChart) balChart.resetZoom()">
+              Reset
+            </button>
+          </div>
         </div>
         <div class="chart-canvas-wrapper" style="height: 200px;">
           <canvas id="loanBalanceChart"></canvas>
@@ -207,6 +229,24 @@
     { line: '#64748b', bg: 'rgba(100, 116, 139, 0.08)' },
   ];
 
+  const zoomPluginConfig = {
+    pan: {
+      enabled: true,
+      mode: 'x',
+      threshold: 5
+    },
+    zoom: {
+      wheel: {
+        enabled: true,
+        speed: 0.08
+      },
+      pinch: {
+        enabled: true
+      },
+      mode: 'x'
+    }
+  };
+
   // 1. Cumulative Cost Chart
   const ctxCost = document.getElementById('cumulativeCostChart').getContext('2d');
   const costDatasets = chartData.series.map((s, idx) => ({
@@ -221,7 +261,7 @@
     tension: 0.15
   }));
 
-  const costChart = new Chart(ctxCost, {
+  window.costChart = new Chart(ctxCost, {
     type: 'line',
     data: {
       labels: chartData.months,
@@ -250,7 +290,8 @@
               return `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
             }
           }
-        }
+        },
+        zoom: zoomPluginConfig
       },
       scales: {
         x: {
@@ -272,7 +313,7 @@
   const primSeries = chartData.series.length > 1 ? chartData.series[1] : (chartData.series[0] || null);
 
   if (primSeries) {
-    new Chart(ctxComp, {
+    window.compChart = new Chart(ctxComp, {
       type: 'line',
       data: {
         labels: chartData.months.filter(m => m > 0),
@@ -319,7 +360,8 @@
             callbacks: {
               label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toFixed(0)}`
             }
-          }
+          },
+          zoom: zoomPluginConfig
         },
         scales: {
           x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
@@ -344,7 +386,7 @@
     tension: 0.1
   }));
 
-  new Chart(ctxBal, {
+  window.balChart = new Chart(ctxBal, {
     type: 'line',
     data: {
       labels: chartData.months,
@@ -360,7 +402,8 @@
           callbacks: {
             label: ctx => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString(undefined, {maximumFractionDigits: 0})}`
           }
-        }
+        },
+        zoom: zoomPluginConfig
       },
       scales: {
         x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },

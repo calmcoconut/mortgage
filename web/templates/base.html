@@ -6,9 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Mortgage Compass — Personal Mortgage Comparison{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-  <!-- Local HTMX & Chart.js -->
+  <!-- Local HTMX, Chart.js, Hammer.js, and Zoom Plugin -->
   <script src="{% static 'js/htmx.min.js' %}"></script>
   <script src="{% static 'js/chart.umd.min.js' %}"></script>
+  <script src="{% static 'js/hammer.min.js' %}"></script>
+  <script src="{% static 'js/chartjs-plugin-zoom.min.js' %}"></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>

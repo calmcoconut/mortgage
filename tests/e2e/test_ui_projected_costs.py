@@ -100,3 +100,22 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
             EC.visibility_of_element_located((By.CLASS_NAME, "kpi-grid"))
         )
         self.assertIn("Month 48", kpi_grid.text)
+
+        # 5. Assert Zoom plugin loaded & zoom/pan controls
+        zoom_plugin_registered = self.driver.execute_script(
+            "return typeof Chart.registry.getPlugin('zoom') !== 'undefined';"
+        )
+        self.assertTrue(zoom_plugin_registered)
+
+        # Check reset zoom button presence
+        reset_btn = self.driver.find_element(By.CLASS_NAME, "btn-zoom-reset")
+        self.assertTrue(reset_btn.is_displayed())
+
+        # Test zoom execution & reset via button
+        self.driver.execute_script("window.costChart.zoom(1.5);")
+        is_zoomed = self.driver.execute_script("return window.costChart.isZoomedOrPanned();")
+        self.assertTrue(is_zoomed)
+
+        reset_btn.click()
+        is_zoomed_after_reset = self.driver.execute_script("return window.costChart.isZoomedOrPanned();")
+        self.assertFalse(is_zoomed_after_reset)
