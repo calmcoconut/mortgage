@@ -2,6 +2,9 @@
 
 Welcome to **Mortgage Compass**! This guide provides an architectural overview, file-by-file index, testing methodology, and local development setup for developers contributing to the codebase.
 
+> [!NOTE]
+> **AI Usage & Financial Disclaimer**: This codebase, documentation, and test suites were developed with the assistance of AI coding tools. While the financial math core is rigorously tested with golden fixtures and property-based tests, this software is provided for personal informational and educational purposes only and does not constitute financial, investment, lending, or legal advice.
+
 ---
 
 ## 1. Architectural Overview
@@ -244,3 +247,10 @@ docker compose up -d --build
 ```
 
 The container starts Gunicorn bound to port `8080` with persistent SQLite storage mounted at `/app/db.sqlite3`.
+
+---
+
+## 6. AI Usage & Financial Disclaimer
+
+- **AI-Assisted Development**: This repository, including its source code, tests, and documentation, was authored with the assistance of Generative AI tools (e.g., Google Antigravity / Gemini).
+- **Personal Use & Verification**: Mortgage Compass is designed as a personal decision-support and scenario-modeling tool. Users should always independently verify rates, terms, and calculations against official Loan Estimates (LE), Closing Disclosures (CD), and direct consultation with licensed mortgage lenders.
