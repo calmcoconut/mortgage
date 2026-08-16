@@ -31,6 +31,8 @@ from web.models import (
 from web.services import (
     build_projected_costs_chart_data,
     compare_scenario,
+    export_scenario_to_dict,
+    import_or_update_scenario_from_dict,
 )
 
 
@@ -54,7 +56,90 @@ def scenario_create(request: HttpRequest) -> HttpResponse:
         {
             "form": form,
             "is_create": True,
-            "scenario": None,
+        },
+    )
+
+
+def scenario_import_json(request: HttpRequest) -> HttpResponse:
+    error_msg = None
+    initial_json = ""
+    if request.method == "POST":
+        raw_text = request.POST.get("json_payload", "").strip()
+        uploaded_file = request.FILES.get("json_file")
+
+        if uploaded_file:
+            try:
+                raw_text = uploaded_file.read().decode("utf-8")
+            except Exception as e:
+                error_msg = f"Failed to read uploaded JSON file: {e}"
+
+        if not error_msg:
+            if not raw_text:
+                error_msg = "Please provide JSON text or upload a .json file."
+            else:
+                try:
+                    payload = json.loads(raw_text)
+                    scenario = import_or_update_scenario_from_dict(payload)
+                    return redirect("web:scenario_compare", scenario_id=scenario.id)
+                except json.JSONDecodeError as e:
+                    error_msg = f"Invalid JSON syntax: {e}"
+                    initial_json = raw_text
+                except Exception as e:
+                    error_msg = f"Failed to import scenario: {e}"
+                    initial_json = raw_text
+
+    return render(
+        request,
+        "scenario_import_json.html",
+        {
+            "error_msg": error_msg,
+            "initial_json": initial_json,
+        },
+    )
+
+
+def scenario_export_json(request: HttpRequest, scenario_id: UUID) -> HttpResponse:
+    scenario = get_object_or_404(ScenarioModel, id=scenario_id)
+    data = export_scenario_to_dict(scenario)
+    json_str = json.dumps(data, indent=2)
+    response = HttpResponse(json_str, content_type="application/json")
+    if request.GET.get("download") == "1":
+        clean_name = "".join(
+            c for c in scenario.name if c.isalnum() or c in (" ", "_", "-")
+        ).strip().replace(" ", "_")
+        response["Content-Disposition"] = (
+            f'attachment; filename="scenario_{clean_name or scenario.id}.json"'
+        )
+    return response
+
+
+def scenario_edit_json(request: HttpRequest, scenario_id: UUID) -> HttpResponse:
+    scenario = get_object_or_404(ScenarioModel, id=scenario_id)
+    error_msg = None
+    if request.method == "POST":
+        raw_text = request.POST.get("json_payload", "").strip()
+        if not raw_text:
+            error_msg = "JSON content cannot be empty."
+        else:
+            try:
+                payload = json.loads(raw_text)
+                import_or_update_scenario_from_dict(payload, scenario=scenario)
+                return redirect("web:scenario_compare", scenario_id=scenario.id)
+            except json.JSONDecodeError as e:
+                error_msg = f"Invalid JSON syntax: {e}"
+            except Exception as e:
+                error_msg = f"Failed to update scenario: {e}"
+        current_json = raw_text
+    else:
+        current_json = json.dumps(export_scenario_to_dict(scenario), indent=2)
+
+    return render(
+        request,
+        "scenario_edit_json.html",
+        {
+            "scenario": scenario,
+            "current_json": current_json,
+            "error_msg": error_msg,
         },
     )
 

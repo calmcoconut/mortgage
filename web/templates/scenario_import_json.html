@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Import Scenario via JSON — Mortgage Compass{% endblock %}
+
+{% block content %}
+<div style="max-width: 960px; margin: 0 auto;">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1 class="page-title">Import Scenario via JSON</h1>
+      <p class="page-subtitle">Create a complete financing scenario and loan options by uploading or pasting a JSON payload.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'web:scenario_list' %}" class="btn btn-outline btn-sm">Cancel</a>
+      <a href="{% url 'web:scenario_create' %}" class="btn btn-outline btn-sm">Standard Form</a>
+    </div>
+  </div>
+
+  {% if error_msg %}
+    <div style="background: #fee2e2; border: 1px solid #f87171; color: #b91c1c; padding: 14px 18px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 0.9rem;">
+      <strong>Import Error:</strong> {{ error_msg }}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="card" style="padding: 28px;">
+    {% csrf_token %}
+
+    <!-- File Upload Section -->
+    <div style="margin-bottom: 24px; border: 2px dashed #cbd5e1; border-radius: var(--radius-lg); padding: 24px; text-align: center; background: #f8fafc; transition: border-color 0.2s;" id="dropZone">
+      <div style="font-size: 2rem; margin-bottom: 8px;">📄</div>
+      <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Upload Scenario JSON File</div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">Select a local .json file or drag & drop it here</p>
+      <input type="file" name="json_file" id="jsonFileInput" accept=".json,application/json" style="display: none;" onchange="handleFileSelected(this)">
+      <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('jsonFileInput').click()">
+        Choose JSON File
+      </button>
+      <span id="selectedFileName" style="margin-left: 10px; font-size: 0.85rem; font-weight: 600; color: #0284c7;"></span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">Or Paste Raw JSON</span>
+      <div style="margin-left: auto; display: flex; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="loadSamplePurchase()" style="font-size: 0.775rem;">
+          Load Sample Purchase
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="loadSampleRefi()" style="font-size: 0.775rem;">
+          Load Sample Refinance
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="prettifyJson()" style="font-size: 0.775rem;">
+          Format / Prettify
+        </button>
+      </div>
+    </div>
+
+    <div style="position: relative; margin-bottom: 24px;">
+      <textarea name="json_payload" id="jsonPayloadArea" rows="18" class="form-input" style="font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.85rem; line-height: 1.5; background: #0f172a; color: #f8fafc; padding: 16px; border-radius: var(--radius-md); width: 100%; box-sizing: border-box;" placeholder='{\n  "scenario": {\n    "name": "My New Scenario",\n    "loan_amount": 600000,\n    "property_value": 750000\n  }\n}'>{{ initial_json }}</textarea>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Supports nested <code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px;">{"scenario": {...}, "loan_options": [...]}</code> or flat structures.
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <a href="{% url 'web:scenario_list' %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="btnSubmitImport">
+          🚀 Import Scenario
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+const samplePurchase = {
+  "scenario": {
+    "name": "Santa Clara Purchase Scenario",
+    "purpose": "purchase",
+    "property_value": 850000,
+    "loan_amount": 680000,
+    "down_payment": 170000,
+    "fico_band": "760+",
+    "occupancy": "primary",
+    "property_type": "single_family",
+    "state": "CA",
+    "program": "conventional",
+    "term_months": 360,
+    "expected_horizon_months": 84,
+    "gross_monthly_income": 15000,
+    "recurring_monthly_debts": 1000,
+    "estimated_property_tax_monthly": 850,
+    "estimated_homeowners_insurance_monthly": 140,
+    "estimated_hoa_monthly": 0
+  },
+  "loan_options": [
+    {
+      "label": "Option A: 30Y Fixed (0 Pts)",
+      "source_type": "manual",
+      "loan_amount": 680000,
+      "note_rate": 0.0650,
+      "apr": 0.0650,
+      "term_months": 360,
+      "points_pct": 0.0,
+      "lender_fees": 0,
+      "lender_credit": 0
+    },
+    {
+      "label": "Option B: 30Y Fixed (2 Pts)",
+      "source_type": "loan_estimate",
+      "loan_amount": 680000,
+      "note_rate": 0.0600,
+      "apr": 0.0615,
+      "term_months": 360,
+      "points_pct": 0.0200,
+      "lender_fees": 800,
+      "lender_credit": 0
+    }
+  ]
+};
+
+const sampleRefi = {
+  "scenario": {
+    "name": "Rate & Term Refinance",
+    "purpose": "refinance",
+    "property_value": 900000,
+    "loan_amount": 550000,
+    "down_payment": 0,
+    "fico_band": "760+",
+    "occupancy": "primary",
+    "property_type": "single_family",
+    "state": "CA",
+    "program": "conventional",
+    "term_months": 360,
+    "expected_horizon_months": 60,
+    "gross_monthly_income": 18000,
+    "recurring_monthly_debts": 1500
+  },
+  "loan_options": [
+    {
+      "label": "Current Loan (Baseline 7.25%)",
+      "source_type": "manual",
+      "loan_amount": 550000,
+      "note_rate": 0.0725,
+      "term_months": 360,
+      "points_pct": 0.0
+    },
+    {
+      "label": "Refinance 30Y Fixed (5.99%)",
+      "source_type": "loan_estimate",
+      "loan_amount": 550000,
+      "note_rate": 0.0599,
+      "apr": 0.0608,
+      "term_months": 360,
+      "points_pct": 0.005,
+      "lender_fees": 1200
+    }
+  ]
+};
+
+function loadSamplePurchase() {
+  document.getElementById('jsonPayloadArea').value = JSON.stringify(samplePurchase, null, 2);
+}
+
+function loadSampleRefi() {
+  document.getElementById('jsonPayloadArea').value = JSON.stringify(sampleRefi, null, 2);
+}
+
+function prettifyJson() {
+  const area = document.getElementById('jsonPayloadArea');
+  try {
+    const parsed = JSON.parse(area.value);
+    area.value = JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    alert("Invalid JSON: " + e.message);
+  }
+}
+
+function handleFileSelected(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    document.getElementById('selectedFileName').textContent = 'Selected: ' + file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('jsonPayloadArea').value = e.target.result;
+    };
+    reader.readAsText(file);
+  }
+}
+
+// Drag & drop handlers
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.style.borderColor = '#0284c7';
+  dropZone.style.background = '#f0f9ff';
+});
+dropZone.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dropZone.style.borderColor = '#cbd5e1';
+  dropZone.style.background = '#f8fafc';
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.style.borderColor = '#cbd5e1';
+  dropZone.style.background = '#f8fafc';
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    const file = e.dataTransfer.files[0];
+    document.getElementById('selectedFileName').textContent = 'Selected: ' + file.name;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      document.getElementById('jsonPayloadArea').value = evt.target.result;
+    };
+    reader.readAsText(file);
+  }
+});
+</script>
+{% endblock %}

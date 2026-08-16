@@ -1,7 +1,10 @@
 import re
-from decimal import Decimal
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
+
+from django.db import transaction
 
 from core.financing_cost import compare_options
 from core.models import (
@@ -213,4 +216,299 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
         else "",
         "horizon_months": comparison.horizon_months,
     }
+
+
+def parse_json_decimal(
+    val: Any, default: Decimal | None = None
+) -> Decimal | None:
+    if val is None or val == "":
+        return default
+    if isinstance(val, (int, float, Decimal)):
+        return Decimal(str(val))
+    if isinstance(val, str):
+        clean = val.strip().replace("$", "").replace(",", "")
+        if not clean:
+            return default
+        try:
+            return Decimal(clean)
+        except InvalidOperation:
+            return default
+    return default
+
+
+def parse_json_rate(
+    val: Any, default: Decimal | None = None
+) -> Decimal | None:
+    if val is None or val == "":
+        return default
+    if isinstance(val, str):
+        clean = val.strip().replace("%", "")
+        try:
+            dec = Decimal(clean)
+            if dec > Decimal("1.0"):
+                return dec / Decimal("100")
+            return dec
+        except InvalidOperation:
+            return default
+    try:
+        dec = Decimal(str(val))
+        if dec > Decimal("1.0"):
+            return dec / Decimal("100")
+        return dec
+    except (InvalidOperation, ValueError, TypeError):
+        return default
+
+
+def export_scenario_to_dict(scenario: ScenarioModel) -> dict[str, Any]:
+    """Serialize ScenarioModel and its LoanOptionModels into a JSON-serializable structure."""
+    options_data = []
+    for opt in scenario.loan_options.all().order_by("created_at"):
+        options_data.append(
+            {
+                "id": str(opt.id),
+                "label": opt.label,
+                "source_type": opt.source_type,
+                "entered_on": opt.entered_on.isoformat()
+                if opt.entered_on
+                else None,
+                "loan_amount": float(round(opt.loan_amount, 2))
+                if opt.loan_amount is not None
+                else None,
+                "note_rate": float(round(opt.note_rate, 4))
+                if opt.note_rate is not None
+                else None,
+                "apr": float(round(opt.apr, 4))
+                if opt.apr is not None
+                else None,
+                "term_months": opt.term_months,
+                "points_pct": float(round(opt.points_pct, 4))
+                if opt.points_pct is not None
+                else 0.0,
+                "lender_credit": float(round(opt.lender_credit, 2))
+                if opt.lender_credit is not None
+                else 0.0,
+                "lender_fees": float(round(opt.lender_fees, 2))
+                if opt.lender_fees is not None
+                else 0.0,
+                "monthly_mi": float(round(opt.monthly_mi, 2))
+                if opt.monthly_mi is not None
+                else 0.0,
+                "upfront_mi": float(round(opt.upfront_mi, 2))
+                if opt.upfront_mi is not None
+                else 0.0,
+                "notes": opt.notes or "",
+            }
+        )
+
+    return {
+        "version": "1.0",
+        "scenario": {
+            "id": str(scenario.id),
+            "name": scenario.name,
+            "purpose": scenario.purpose,
+            "property_value": float(round(scenario.property_value, 2))
+            if scenario.property_value is not None
+            else None,
+            "loan_amount": float(round(scenario.loan_amount, 2)),
+            "down_payment": float(round(scenario.down_payment, 2))
+            if scenario.down_payment is not None
+            else 0.0,
+            "fico_band": scenario.fico_band,
+            "occupancy": scenario.occupancy,
+            "property_type": scenario.property_type,
+            "state": scenario.state,
+            "county_fips": scenario.county_fips or "",
+            "program": scenario.program,
+            "term_months": scenario.term_months,
+            "expected_horizon_months": scenario.expected_horizon_months,
+            "gross_monthly_income": float(round(scenario.gross_monthly_income, 2))
+            if scenario.gross_monthly_income is not None
+            else None,
+            "recurring_monthly_debts": float(
+                round(scenario.recurring_monthly_debts, 2)
+            )
+            if scenario.recurring_monthly_debts is not None
+            else None,
+            "estimated_property_tax_monthly": float(
+                round(scenario.estimated_property_tax_monthly, 2)
+            )
+            if scenario.estimated_property_tax_monthly is not None
+            else 0.0,
+            "estimated_homeowners_insurance_monthly": float(
+                round(scenario.estimated_homeowners_insurance_monthly, 2)
+            )
+            if scenario.estimated_homeowners_insurance_monthly is not None
+            else 0.0,
+            "estimated_hoa_monthly": float(
+                round(scenario.estimated_hoa_monthly, 2)
+            )
+            if scenario.estimated_hoa_monthly is not None
+            else 0.0,
+        },
+        "loan_options": options_data,
+    }
+
+
+def import_or_update_scenario_from_dict(
+    payload: dict[str, Any],
+    scenario: ScenarioModel | None = None,
+) -> ScenarioModel:
+    """Parse JSON/dictionary structure and create or update a ScenarioModel with LoanOptions."""
+    # Support nested {"scenario": {...}} or root dict
+    sc_data = payload.get("scenario", payload)
+    options_data = payload.get("loan_options", [])
+
+    with transaction.atomic():
+        if scenario is None:
+            # Create new
+            scenario = ScenarioModel()
+
+        # Update scenario fields
+        if "name" in sc_data and sc_data["name"]:
+            scenario.name = str(sc_data["name"]).strip()
+        elif not scenario.name:
+            scenario.name = "Imported Scenario"
+
+        if "purpose" in sc_data:
+            scenario.purpose = str(sc_data["purpose"]).lower()
+        if "property_value" in sc_data:
+            scenario.property_value = parse_json_decimal(sc_data["property_value"])
+        if "loan_amount" in sc_data:
+            scenario.loan_amount = (
+                parse_json_decimal(sc_data["loan_amount"])
+                or scenario.loan_amount
+                or Decimal("500000.00")
+            )
+        if "down_payment" in sc_data:
+            scenario.down_payment = parse_json_decimal(
+                sc_data["down_payment"], Decimal("0.00")
+            )
+        if "fico_band" in sc_data:
+            scenario.fico_band = str(sc_data["fico_band"])
+        if "occupancy" in sc_data:
+            scenario.occupancy = str(sc_data["occupancy"]).lower()
+        if "property_type" in sc_data:
+            scenario.property_type = str(sc_data["property_type"]).lower()
+        if "state" in sc_data:
+            scenario.state = str(sc_data["state"]).upper()[:2]
+        if "county_fips" in sc_data:
+            scenario.county_fips = str(sc_data["county_fips"])
+        if "program" in sc_data:
+            scenario.program = str(sc_data["program"]).lower()
+        if "term_months" in sc_data and sc_data["term_months"]:
+            scenario.term_months = int(sc_data["term_months"])
+        if "expected_horizon_months" in sc_data and sc_data["expected_horizon_months"]:
+            scenario.expected_horizon_months = int(
+                sc_data["expected_horizon_months"]
+            )
+        if "gross_monthly_income" in sc_data:
+            scenario.gross_monthly_income = parse_json_decimal(
+                sc_data["gross_monthly_income"]
+            )
+        if "recurring_monthly_debts" in sc_data:
+            scenario.recurring_monthly_debts = parse_json_decimal(
+                sc_data["recurring_monthly_debts"]
+            )
+        if "estimated_property_tax_monthly" in sc_data:
+            scenario.estimated_property_tax_monthly = parse_json_decimal(
+                sc_data["estimated_property_tax_monthly"], Decimal("0.00")
+            )
+        if "estimated_homeowners_insurance_monthly" in sc_data:
+            scenario.estimated_homeowners_insurance_monthly = parse_json_decimal(
+                sc_data["estimated_homeowners_insurance_monthly"],
+                Decimal("0.00"),
+            )
+        if "estimated_hoa_monthly" in sc_data:
+            scenario.estimated_hoa_monthly = parse_json_decimal(
+                sc_data["estimated_hoa_monthly"], Decimal("0.00")
+            )
+
+        scenario.save()
+
+        # Handle loan options if provided
+        for opt_item in options_data:
+            opt_id = opt_item.get("id")
+            opt_model = None
+            if opt_id:
+                try:
+                    opt_model = scenario.loan_options.get(id=opt_id)
+                except (
+                    LoanOptionModel.DoesNotExist,
+                    ValueError,
+                    TypeError,
+                ):
+                    opt_model = None
+
+            if opt_model is None:
+                opt_model = LoanOptionModel(scenario=scenario)
+
+            if "label" in opt_item:
+                opt_model.label = str(opt_item["label"]).strip()
+            elif not opt_model.label:
+                opt_model.label = "Loan Option"
+
+            if "source_type" in opt_item:
+                opt_model.source_type = str(opt_item["source_type"]).lower()
+            if "entered_on" in opt_item and opt_item["entered_on"]:
+                val = opt_item["entered_on"]
+                if isinstance(val, str):
+                    try:
+                        opt_model.entered_on = datetime.fromisoformat(
+                            val
+                        ).date()
+                    except ValueError:
+                        opt_model.entered_on = date.today()
+                elif isinstance(val, date):
+                    opt_model.entered_on = val
+            elif not opt_model.entered_on:
+                opt_model.entered_on = date.today()
+
+            if "loan_amount" in opt_item:
+                opt_model.loan_amount = (
+                    parse_json_decimal(opt_item["loan_amount"])
+                    or scenario.loan_amount
+                )
+            elif not opt_model.loan_amount:
+                opt_model.loan_amount = scenario.loan_amount
+
+            if "note_rate" in opt_item:
+                opt_model.note_rate = (
+                    parse_json_rate(opt_item["note_rate"])
+                    or Decimal("0.0650")
+                )
+            if "apr" in opt_item:
+                opt_model.apr = parse_json_rate(opt_item["apr"])
+            if "term_months" in opt_item and opt_item["term_months"]:
+                opt_model.term_months = int(opt_item["term_months"])
+            elif not opt_model.term_months:
+                opt_model.term_months = scenario.term_months or 360
+
+            if "points_pct" in opt_item:
+                opt_model.points_pct = (
+                    parse_json_rate(opt_item["points_pct"])
+                    or Decimal("0.0000")
+                )
+            if "lender_credit" in opt_item:
+                opt_model.lender_credit = parse_json_decimal(
+                    opt_item["lender_credit"], Decimal("0.00")
+                )
+            if "lender_fees" in opt_item:
+                opt_model.lender_fees = parse_json_decimal(
+                    opt_item["lender_fees"], Decimal("0.00")
+                )
+            if "monthly_mi" in opt_item:
+                opt_model.monthly_mi = parse_json_decimal(
+                    opt_item["monthly_mi"], Decimal("0.00")
+                )
+            if "upfront_mi" in opt_item:
+                opt_model.upfront_mi = parse_json_decimal(
+                    opt_item["upfront_mi"], Decimal("0.00")
+                )
+            if "notes" in opt_item:
+                opt_model.notes = str(opt_item["notes"])
+
+            opt_model.save()
+
+    return scenario
+
 

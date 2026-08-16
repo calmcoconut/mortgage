@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Scenario JSON — {{ scenario.name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 960px; margin: 0 auto;">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1 class="page-title">Edit Scenario JSON</h1>
+      <p class="page-subtitle">Directly edit the raw JSON structure for <strong>{{ scenario.name }}</strong> and its financing options.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'web:scenario_compare' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">← Back to Scenario</a>
+      <a href="{% url 'web:scenario_edit' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">Standard Edit Form</a>
+    </div>
+  </div>
+
+  {% if error_msg %}
+    <div style="background: #fee2e2; border: 1px solid #f87171; color: #b91c1c; padding: 14px 18px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 0.9rem;">
+      <strong>Error Updating JSON:</strong> {{ error_msg }}
+    </div>
+  {% endif %}
+
+  <form method="post" class="card" style="padding: 28px;">
+    {% csrf_token %}
+
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+      <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">Scenario JSON Payload</span>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="copyJsonToClipboard()" style="font-size: 0.775rem;" id="btnCopyJson">
+          📋 Copy JSON
+        </button>
+        <a href="{% url 'web:scenario_export_json' scenario_id=scenario.id %}?download=1" class="btn btn-outline btn-sm" style="font-size: 0.775rem;">
+          ⬇️ Download File
+        </a>
+        <button type="button" class="btn btn-outline btn-sm" onclick="prettifyJson()" style="font-size: 0.775rem;">
+          Format / Prettify
+        </button>
+      </div>
+    </div>
+
+    <div style="position: relative; margin-bottom: 24px;">
+      <textarea name="json_payload" id="jsonPayloadArea" rows="22" class="form-input" style="font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.85rem; line-height: 1.5; background: #0f172a; color: #f8fafc; padding: 16px; border-radius: var(--radius-md); width: 100%; box-sizing: border-box;">{{ current_json }}</textarea>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Saving will update existing options or create new ones defined in the JSON.
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <a href="{% url 'web:scenario_compare' scenario_id=scenario.id %}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="btnSaveJson">
+          💾 Save Changes
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+function prettifyJson() {
+  const area = document.getElementById('jsonPayloadArea');
+  try {
+    const parsed = JSON.parse(area.value);
+    area.value = JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    alert("Invalid JSON: " + e.message);
+  }
+}
+
+function copyJsonToClipboard() {
+  const area = document.getElementById('jsonPayloadArea');
+  navigator.clipboard.writeText(area.value).then(() => {
+    const btn = document.getElementById('btnCopyJson');
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.color = '#047857';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.style.color = '';
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

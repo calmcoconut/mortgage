@@ -8,7 +8,22 @@ urlpatterns = [
     path("", views.scenario_list, name="scenario_list"),
     path("scenarios/new/", views.scenario_create, name="scenario_create"),
     path(
+        "scenarios/import-json/",
+        views.scenario_import_json,
+        name="scenario_import_json",
+    ),
+    path(
         "scenarios/<uuid:scenario_id>/edit/", views.scenario_edit, name="scenario_edit"
+    ),
+    path(
+        "scenarios/<uuid:scenario_id>/edit-json/",
+        views.scenario_edit_json,
+        name="scenario_edit_json",
+    ),
+    path(
+        "scenarios/<uuid:scenario_id>/export-json/",
+        views.scenario_export_json,
+        name="scenario_export_json",
     ),
     path(
         "scenarios/<uuid:scenario_id>/delete/",

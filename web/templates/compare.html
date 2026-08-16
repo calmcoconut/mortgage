@@ -50,6 +50,16 @@
       <span>Live Market Offers</span>
     </button>
 
+    <!-- JSON Actions -->
+    <a href="{% url 'web:scenario_edit_json' scenario_id=scenario.id %}" class="btn btn-outline btn-sm" id="btnEditJson" title="View or edit scenario as JSON">
+      <span>{ }</span>
+      <span>Edit JSON</span>
+    </a>
+    <a href="{% url 'web:scenario_export_json' scenario_id=scenario.id %}?download=1" class="btn btn-outline btn-sm" id="btnExportJson" title="Download scenario as JSON file">
+      <span>⬇️</span>
+      <span>Export JSON</span>
+    </a>
+
     <!-- Add Option Button -->
     <a href="{% url 'web:option_create' scenario_id=scenario.id %}" class="btn btn-primary btn-sm">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

@@ -4,9 +4,24 @@
 
 {% block content %}
 <div style="max-width: 900px; margin: 0 auto;">
-  <div class="page-header">
-    <h1 class="page-title">{% if is_create %}Create Financing Scenario{% else %}Edit Scenario Details{% endif %}</h1>
-    <p class="page-subtitle">Configure property value, loan amounts, and housing cash-flow context.</p>
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1 class="page-title">{% if is_create %}Create Financing Scenario{% else %}Edit Scenario Details{% endif %}</h1>
+      <p class="page-subtitle">Configure property value, loan amounts, and housing cash-flow context.</p>
+    </div>
+    <div>
+      {% if is_create %}
+        <a href="{% url 'web:scenario_import_json' %}" class="btn btn-outline btn-sm">
+          <span>{ }</span>
+          <span>Import via JSON</span>
+        </a>
+      {% else %}
+        <a href="{% url 'web:scenario_edit_json' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">
+          <span>{ }</span>
+          <span>Edit as JSON</span>
+        </a>
+      {% endif %}
+    </div>
   </div>
 
   <form method="post" class="card" style="padding: 28px;">
