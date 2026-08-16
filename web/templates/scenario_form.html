@@ -149,8 +149,8 @@
     </div>
 
     <div style="margin-bottom: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px;">3. Monthly Context (Excluded from Financing Cost)</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Property tax, insurance, and HOA are property-level context and are not counted towards loan financing cost.</p>
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px;">3. Monthly Context & Escrow</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Property tax, insurance, and HOA are property-level context used to compute total PITI cash outflows and DTI.</p>
       
       <div class="form-grid">
         <div class="form-group">
@@ -164,6 +164,35 @@
         <div class="form-group">
           <label class="form-label">HOA Dues ($/mo)</label>
           {{ form.estimated_hoa_monthly }}
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px;">4. Appreciation & Tax Deduction Settings</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Model home equity accumulation over time and optional mortgage interest tax deduction shields.</p>
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Annual Home Price Appreciation (%)</label>
+          {{ form.annual_appreciation_pct }}
+          <span style="font-size: 0.775rem; color: var(--text-muted);">Expected annual property growth (e.g. 3.0%). Drives equity buildup.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tax Filing Status</label>
+          {{ form.filing_status }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Marginal Tax Bracket (%)</label>
+          {{ form.marginal_tax_rate_pct }}
+          <span style="font-size: 0.775rem; color: var(--text-muted);">Combined Federal + State marginal rate (e.g. 24% Fed + 9.3% CA = 33.3%).</span>
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; justify-content: center; padding-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #0f172a;">
+            {{ form.itemize_deductions }}
+            <span>Itemize Tax Deductions</span>
+          </label>
+          <span style="font-size: 0.775rem; color: var(--text-muted); margin-top: 4px;">Deduct mortgage interest above standard deduction (IRS $750k debt limit).</span>
         </div>
       </div>
     </div>

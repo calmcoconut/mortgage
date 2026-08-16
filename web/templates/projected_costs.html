@@ -182,7 +182,7 @@
 <div class="card" style="padding: 18px 22px; margin-bottom: 24px; overflow-x: auto;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
     <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0;">Loan Options Comparison Summary</h3>
-    <span style="font-size: 0.8rem; color: var(--text-muted);">All numbers server-calculated for {{ horizon_years }}-year holding period</span>
+    <span style="font-size: 0.8rem; color: var(--text-muted);">Calculated for {{ horizon_years }}-year holding period ({{ scenario.annual_appreciation_pct|floatformat:1 }}% annual appreciation)</span>
   </div>
   <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
     <thead>
@@ -192,8 +192,10 @@
         <th style="padding: 10px 8px; text-align: right;">Rate / APR</th>
         <th style="padding: 10px 8px; text-align: right;">Net Upfront Fees</th>
         <th style="padding: 10px 8px; text-align: right;">Monthly P&I</th>
-        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Cumulative Interest</th>
-        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Total Financing Cost</th>
+        <th style="padding: 10px 8px; text-align: right;">Total Monthly PITI</th>
+        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Financing Cost</th>
+        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Total Cash Outflow</th>
+        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Home Equity</th>
       </tr>
     </thead>
     <tbody>
@@ -229,11 +231,17 @@
         <td style="padding: 12px 8px; text-align: right; font-weight: 600;">
           ${{ opt.monthly_pi|floatformat:0|intcomma }}
         </td>
-        <td style="padding: 12px 8px; text-align: right; color: #475569;">
-          ${{ opt.cumulative_interest_at_horizon|floatformat:0|intcomma }}
+        <td style="padding: 12px 8px; text-align: right; font-weight: 600; color: #0284c7;">
+          ${{ opt.total_piti_monthly|floatformat:0|intcomma }}
         </td>
         <td style="padding: 12px 8px; text-align: right; font-weight: 700; color: #0f172a;">
           ${{ opt.financing_cost_at_horizon|floatformat:0|intcomma }}
+        </td>
+        <td style="padding: 12px 8px; text-align: right; color: #475569;">
+          ${{ opt.total_outflow_at_horizon|floatformat:0|intcomma }}
+        </td>
+        <td style="padding: 12px 8px; text-align: right; font-weight: 600; color: #047857;">
+          ${{ opt.home_equity_at_horizon|floatformat:0|intcomma }}
         </td>
       </tr>
       {% endfor %}
@@ -241,6 +249,25 @@
   </table>
 </div>
 {% endif %}
+
+<!-- Projection Metric Switcher -->
+<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; background: #ffffff; padding: 12px 18px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+  <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a; margin-right: 6px;">Chart Mode:</span>
+  <button type="button" class="btn btn-sm btn-primary" id="btnModeCost" onclick="switchChartMetric('financing_cost', 'Cumulative Financing Cost ($)', this)">
+    Pure Financing Cost
+  </button>
+  <button type="button" class="btn btn-sm btn-outline" id="btnModeOutflow" onclick="switchChartMetric('total_outflow', 'Total Housing Outflow (PITI + Escrow) ($)', this)">
+    Total Housing Cash Outflow (PITI + HOA)
+  </button>
+  <button type="button" class="btn btn-sm btn-outline" id="btnModeEquity" onclick="switchChartMetric('home_equity', 'Estimated Home Equity ($)', this)">
+    Home Equity Buildup ({{ scenario.annual_appreciation_pct|floatformat:1 }}%/yr)
+  </button>
+  {% if scenario.itemize_deductions %}
+  <button type="button" class="btn btn-sm btn-outline" id="btnModeTax" onclick="switchChartMetric('after_tax_cost', 'After-Tax Financing Cost ($)', this)">
+    After-Tax Financing Cost ({{ scenario.marginal_tax_rate_pct|floatformat:1 }}% Bracket)
+  </button>
+  {% endif %}
+</div>
 
 <!-- Charts & Info Layout -->
 <div class="charts-layout">
@@ -250,8 +277,8 @@
     <div class="chart-card">
       <div class="chart-header">
         <div>
-          <h3 class="chart-title">Interactive cumulative financing cost chart</h3>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0 0;">Solid curves = Verified Loan Estimates · Dashed curves = Advertised market quotes</p>
+          <h3 class="chart-title" id="mainChartTitle">Interactive cumulative financing cost chart</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0 0;" id="mainChartSubtitle">Solid curves = Verified Loan Estimates · Dashed curves = Advertised market quotes</p>
         </div>
         <div class="chart-toolbar">
           <span class="chart-hint">Scroll / drag to zoom & pan</span>
@@ -500,6 +527,48 @@
       }
     }
   });
+
+  let currentMetricKey = 'financing_cost';
+
+  function switchChartMetric(metricKey, axisLabel, btnElement) {
+    currentMetricKey = metricKey;
+
+    document.querySelectorAll('#btnModeCost, #btnModeOutflow, #btnModeEquity, #btnModeTax').forEach(btn => {
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-outline');
+    });
+    if (btnElement) {
+      btnElement.classList.remove('btn-outline');
+      btnElement.classList.add('btn-primary');
+    }
+
+    const titleEl = document.getElementById('mainChartTitle');
+    const subtitleEl = document.getElementById('mainChartSubtitle');
+    if (metricKey === 'financing_cost') {
+      titleEl.textContent = 'Interactive cumulative financing cost chart';
+      subtitleEl.textContent = 'Solid curves = Verified Loan Estimates · Dashed curves = Advertised market quotes';
+    } else if (metricKey === 'total_outflow') {
+      titleEl.textContent = 'Total housing cash outflow projection (PITI + HOA)';
+      subtitleEl.textContent = 'Cumulative principal + interest + mortgage insurance + property tax + homeowners insurance + HOA dues';
+    } else if (metricKey === 'home_equity') {
+      titleEl.textContent = 'Estimated home equity & wealth accumulation';
+      subtitleEl.textContent = 'Appraised property value growth minus remaining loan balance';
+    } else if (metricKey === 'after_tax_cost') {
+      titleEl.textContent = 'After-tax cumulative financing cost';
+      subtitleEl.textContent = 'Financing cost reduced by mortgage interest itemized tax shield (up to $750k acquisition debt)';
+    }
+
+    if (window.costChart) {
+      window.costChart.data.datasets.forEach((ds, idx) => {
+        const s = chartData.series[idx];
+        if (s && s[metricKey]) {
+          ds.data = s[metricKey];
+        }
+      });
+      window.costChart.options.scales.y.title = { display: true, text: axisLabel, font: { size: 11, weight: '600' } };
+      window.costChart.update();
+    }
+  }
 
   // 2. Payment Composition Stacked Area Chart (for primary/recommended option)
   const ctxComp = document.getElementById('paymentCompositionChart').getContext('2d');

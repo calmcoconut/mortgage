@@ -36,6 +36,10 @@ def scenario_to_input(model: ScenarioModel) -> ScenarioInput:
         estimated_property_tax_monthly=model.estimated_property_tax_monthly,
         estimated_homeowners_insurance_monthly=model.estimated_homeowners_insurance_monthly,
         estimated_hoa_monthly=model.estimated_hoa_monthly,
+        annual_appreciation_pct=model.annual_appreciation_pct,
+        marginal_tax_rate_pct=model.marginal_tax_rate_pct or Decimal("0"),
+        itemize_deductions=model.itemize_deductions,
+        filing_status=model.filing_status,  # type: ignore
     )
 
 
@@ -173,6 +177,10 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
             float(round(r.mortgage_insurance, 2)) for r in opt.amortization
         ]
 
+        outflow_series = [float(round(v, 2)) for v in opt.total_outflow_by_month]
+        equity_series = [float(round(v, 2)) for v in opt.home_equity_by_month]
+        after_tax_series = [float(round(v, 2)) for v in opt.after_tax_cost_by_month]
+
         is_verified = opt.source_type in ["loan_estimate", "manual"]
         clean_lbl = format_clean_label(opt.label)
 
@@ -184,7 +192,11 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
                 "source_type": str(opt.source_type),
                 "is_verified": is_verified,
                 "monthly_pi": float(round(opt.monthly_pi, 2)),
+                "total_piti": float(round(opt.total_piti_monthly, 2)),
                 "financing_cost": cost_series,
+                "total_outflow": outflow_series,
+                "home_equity": equity_series,
+                "after_tax_cost": after_tax_series,
                 "balance": balance_series,
                 "principal": principal_by_month,
                 "interest": interest_by_month,
@@ -196,6 +208,15 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
                 "cumulative_mi": float(round(opt.cumulative_mi_at_horizon, 2)),
                 "total_horizon_cost": float(
                     round(opt.financing_cost_at_horizon, 2)
+                ),
+                "total_outflow_at_horizon": float(
+                    round(opt.total_outflow_at_horizon, 2)
+                ),
+                "home_equity_at_horizon": float(
+                    round(opt.home_equity_at_horizon, 2)
+                ),
+                "after_tax_cost_at_horizon": float(
+                    round(opt.after_tax_cost_at_horizon, 2)
                 ),
                 "note_rate_pct": float(round(opt.note_rate * Decimal("100"), 3)),
                 "apr_pct": float(round(opt.apr * Decimal("100"), 3))
@@ -344,6 +365,16 @@ def export_scenario_to_dict(scenario: ScenarioModel) -> dict[str, Any]:
             )
             if scenario.estimated_hoa_monthly is not None
             else 0.0,
+            "annual_appreciation_pct": float(
+                round(scenario.annual_appreciation_pct * Decimal("100"), 3)
+            ),
+            "marginal_tax_rate_pct": float(
+                round(scenario.marginal_tax_rate_pct * Decimal("100"), 3)
+            )
+            if scenario.marginal_tax_rate_pct is not None
+            else 0.0,
+            "itemize_deductions": scenario.itemize_deductions,
+            "filing_status": scenario.filing_status,
         },
         "loan_options": options_data,
     }
@@ -422,6 +453,19 @@ def import_or_update_scenario_from_dict(
             scenario.estimated_hoa_monthly = parse_json_decimal(
                 sc_data["estimated_hoa_monthly"], Decimal("0.00")
             )
+        if "annual_appreciation_pct" in sc_data:
+            scenario.annual_appreciation_pct = (
+                parse_json_rate(sc_data["annual_appreciation_pct"])
+                or Decimal("0.0300")
+            )
+        if "marginal_tax_rate_pct" in sc_data:
+            scenario.marginal_tax_rate_pct = parse_json_rate(
+                sc_data["marginal_tax_rate_pct"], Decimal("0.2400")
+            )
+        if "itemize_deductions" in sc_data:
+            scenario.itemize_deductions = bool(sc_data["itemize_deductions"])
+        if "filing_status" in sc_data:
+            scenario.filing_status = str(sc_data["filing_status"]).lower()
 
         scenario.save()
 

@@ -48,6 +48,10 @@ class ScenarioInput:
     estimated_property_tax_monthly: Decimal | None = None
     estimated_homeowners_insurance_monthly: Decimal | None = None
     estimated_hoa_monthly: Decimal | None = None
+    annual_appreciation_pct: Decimal = Decimal("0.0300")
+    marginal_tax_rate_pct: Decimal = Decimal("0.0000")
+    itemize_deductions: bool = False
+    filing_status: Literal["single", "married_joint"] = "single"
 
 
 @dataclass(frozen=True)
@@ -90,6 +94,13 @@ class OptionResult:
     lender_credit: Decimal = Decimal("0")
     monthly_mi: Decimal = Decimal("0")
     term_months: int = 360
+    total_outflow_by_month: tuple[Decimal, ...] = ()
+    home_equity_by_month: tuple[Decimal, ...] = ()
+    after_tax_cost_by_month: tuple[Decimal, ...] = ()
+    total_outflow_at_horizon: Decimal = Decimal("0")
+    home_equity_at_horizon: Decimal = Decimal("0")
+    after_tax_cost_at_horizon: Decimal = Decimal("0")
+    total_piti_monthly: Decimal = Decimal("0")
 
     @property
     def rate_pct_display(self) -> str:

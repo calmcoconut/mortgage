@@ -1,6 +1,6 @@
 # Automated Test Suite (`tests/`) — Developer Guide
 
-The `tests/` directory contains 54 automated tests across 4 testing tiers, providing 100% verification for the pure math core, Django ORM services, RateAPI integrations, and browser interaction workflows.
+The `tests/` directory contains 68 automated tests across 4 testing tiers, providing 100% verification for the pure math core, Django ORM services, RateAPI integrations, JSON serialization, and browser interaction workflows.
 
 ---
 
@@ -16,7 +16,9 @@ The `tests/` directory contains 54 automated tests across 4 testing tiers, provi
 │   ├── [test_ui_compare_matrix.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_compare_matrix.py)
 │   │   └── Selenium test verifying the Section 11 worked fixture ($400k loan), recommendation banners, and hold period switches (5yr, 7yr, 30yr).
 │   ├── [test_ui_projected_costs.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_projected_costs.py)
-│   │   └── Selenium test verifying KPI cards, Chart.js canvas elements (`#cumulativeCostChart`, `#paymentCompositionChart`, `#loanBalanceChart`), and discount rate sensitivity.
+│   │   └── Selenium test verifying KPI cards, Chart.js canvas elements, projection metric switcher, and discount rate sensitivity.
+│   ├── [test_ui_json_import_edit.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_json_import_edit.py)
+│   │   └── Selenium test verifying scenario JSON import, compare page verification, and live Monaco/JSON code editing.
 │   ├── [test_ui_option_crud.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_option_crud.py)
 │   │   └── Selenium test verifying the complete Loan Option lifecycle (transcription, editing note rate, live matrix updates, and deletion).
 │   ├── [test_ui_rateapi_enrichment.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_rateapi_enrichment.py)
@@ -44,6 +46,10 @@ The `tests/` directory contains 54 automated tests across 4 testing tiers, provi
     │   └── Unit tests for Django ORM model creation, cascade deletes, and property helpers.
     ├── [test_services.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_services.py)
     │   └── Unit tests for ORM-to-Core translation and Chart.js precomputed dataset generation.
+    ├── [test_json_import_export.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_json_import_export.py)
+    │   └── Unit tests for scenario serialization to dict, JSON file import parsing, upserting options, and view endpoints.
+    ├── [test_financing_cost_enhancements.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_financing_cost_enhancements.py)
+    │   └── Unit tests for home price appreciation equity curves, total housing cash outflows, and IRS § 163(h) tax deductions.
     ├── [test_views.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_views.py)
     │   └── Unit tests for scenario HTTP views and HTMX screening partial responses.
     ├── [test_options_views.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/unit/test_options_views.py)
@@ -64,7 +70,7 @@ The `tests/` directory contains 54 automated tests across 4 testing tiers, provi
 
 ## Test Execution Commands
 
-### 1. Run Complete Suite (54 Tests in ~15.5s)
+### 1. Run Complete Suite (68 Tests in ~21s)
 ```bash
 .venv/bin/pytest -v
 ```

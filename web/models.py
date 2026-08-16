@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.db import models
 from django.utils import timezone
@@ -82,6 +83,33 @@ class ScenarioModel(models.Model):
     )
     estimated_hoa_monthly = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    annual_appreciation_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal("0.0300"),
+        help_text="Estimated annual home price appreciation rate (e.g. 0.0300 for 3%)",
+    )
+    marginal_tax_rate_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal("0.2400"),
+        null=True,
+        blank=True,
+        help_text="Combined federal + state marginal income tax bracket (e.g. 0.2400 for 24%)",
+    )
+    itemize_deductions = models.BooleanField(
+        default=False,
+        help_text="Whether borrower itemizes tax deductions rather than taking the standard deduction",
+    )
+    filing_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("single", "Single ($14,600 Standard)"),
+            ("married_joint", "Married Filing Jointly ($29,200 Standard)"),
+        ],
+        default="single",
+        blank=True,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

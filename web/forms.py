@@ -131,6 +131,42 @@ class ScenarioForm(forms.ModelForm):
             }
         ),
     )
+    annual_appreciation_pct = forms.DecimalField(
+        label="Annual Home Price Appreciation (%)",
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        initial=Decimal("3.0"),
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-input",
+                "placeholder": "3.0",
+                "step": "0.1",
+            }
+        ),
+        help_text="Expected annual home value appreciation rate (default: 3.0%).",
+    )
+    marginal_tax_rate_pct = forms.DecimalField(
+        label="Marginal Income Tax Bracket (%)",
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        initial=Decimal("24.0"),
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-input",
+                "placeholder": "24.0",
+                "step": "0.5",
+            }
+        ),
+        help_text="Combined federal and state marginal tax rate (e.g. 24% Fed + 9.3% CA = 33.3%).",
+    )
+    itemize_deductions = forms.BooleanField(
+        label="Itemize Tax Deductions",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": "form-checkbox"}),
+        help_text="Check if you itemize deductions (interest deductible up to $750k acquisition debt).",
+    )
 
     class Meta:
         model = ScenarioModel
@@ -153,6 +189,10 @@ class ScenarioForm(forms.ModelForm):
             "estimated_property_tax_monthly",
             "estimated_homeowners_insurance_monthly",
             "estimated_hoa_monthly",
+            "annual_appreciation_pct",
+            "marginal_tax_rate_pct",
+            "itemize_deductions",
+            "filing_status",
         ]
         widgets = {
             "name": forms.TextInput(
@@ -178,7 +218,28 @@ class ScenarioForm(forms.ModelForm):
             "expected_horizon_months": forms.NumberInput(
                 attrs={"class": "form-input", "placeholder": "84", "value": "84"}
             ),
+            "filing_status": forms.Select(attrs={"class": "form-select"}),
         }
+
+    def clean_annual_appreciation_pct(self):
+        val = self.cleaned_data.get("annual_appreciation_pct")
+        if val is None:
+            return Decimal("0.0300")
+        if val > Decimal("1.0"):
+            return val / Decimal("100")
+        return val
+
+    def clean_marginal_tax_rate_pct(self):
+        val = self.cleaned_data.get("marginal_tax_rate_pct")
+        if val is None:
+            return Decimal("0.2400")
+        if val > Decimal("1.0"):
+            return val / Decimal("100")
+        return val
+
+    def clean_filing_status(self):
+        val = self.cleaned_data.get("filing_status")
+        return val or "single"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -192,7 +253,19 @@ class ScenarioForm(forms.ModelForm):
             self.fields["occupancy"].initial = "primary"
             self.fields["property_type"].initial = "single_family"
             self.initial.setdefault("property_type", "single_family")
+            self.fields["annual_appreciation_pct"].initial = Decimal("3.0")
+            self.fields["marginal_tax_rate_pct"].initial = Decimal("24.0")
+            self.fields["filing_status"].initial = "single"
+            self.fields["filing_status"].required = False
         else:
+            if self.instance.annual_appreciation_pct is not None:
+                self.fields["annual_appreciation_pct"].initial = round(
+                    self.instance.annual_appreciation_pct * Decimal("100"), 2
+                )
+            if self.instance.marginal_tax_rate_pct is not None:
+                self.fields["marginal_tax_rate_pct"].initial = round(
+                    self.instance.marginal_tax_rate_pct * Decimal("100"), 2
+                )
             for field_name in [
                 "property_value",
                 "loan_amount",

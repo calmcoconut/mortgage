@@ -22,8 +22,9 @@ def calculate_net_upfront(option: LoanOptionInput) -> Decimal:
 def calculate_option_result(
     option: LoanOptionInput,
     horizon_months: int,
+    scenario: ScenarioInput | None = None,
 ) -> OptionResult:
-    """Compute detailed amortization, cumulative financing costs, and horizon results for a loan option."""
+    """Compute detailed amortization, cumulative financing costs, total cash outflows, home equity, and horizon results."""
     monthly_mi = option.monthly_mi or Decimal("0")
     schedule = calculate_amortization(
         loan_amount=option.loan_amount,
@@ -44,9 +45,107 @@ def calculate_option_result(
         cumulative_interest_mi += row.interest + row.mortgage_insurance
         costs_by_month.append(net_upfront + cumulative_interest_mi)
 
+    # Total Cash Outflows (PITI + HOA + Upfront + Down Payment) & Home Equity Buildup
+    monthly_escrow = Decimal("0")
+    down_payment = Decimal("0")
+    property_val_0 = option.loan_amount
+    annual_appreciation = Decimal("0.03")
+    itemize_deductions = False
+    marginal_tax_rate = Decimal("0.0")
+    filing_status = "single"
+
+    if scenario:
+        monthly_escrow = (
+            (scenario.estimated_property_tax_monthly or Decimal("0"))
+            + (scenario.estimated_homeowners_insurance_monthly or Decimal("0"))
+            + (scenario.estimated_hoa_monthly or Decimal("0"))
+        )
+        down_payment = scenario.down_payment or Decimal("0")
+        if scenario.property_value and scenario.property_value > Decimal("0"):
+            property_val_0 = scenario.property_value
+        else:
+            property_val_0 = option.loan_amount + down_payment
+        annual_appreciation = scenario.annual_appreciation_pct or Decimal("0.03")
+        itemize_deductions = scenario.itemize_deductions
+        marginal_tax_rate = scenario.marginal_tax_rate_pct or Decimal("0.0")
+        filing_status = scenario.filing_status
+
+    total_piti_monthly = monthly_pi + monthly_mi + monthly_escrow
+
+    # Month-by-month total cash outflow
+    initial_outflow = net_upfront + down_payment
+    outflow_by_month: list[Decimal] = [initial_outflow]
+    running_outflow = initial_outflow
+
+    # Month-by-month home equity buildup
+    initial_equity = max(property_val_0 - option.loan_amount, Decimal("0"))
+    home_equity_by_month: list[Decimal] = [initial_equity]
+
+    monthly_appreciation_factor = Decimal("1") + (annual_appreciation / Decimal("12"))
+
+    for m_idx, row in enumerate(schedule, start=1):
+        running_outflow += row.payment + row.mortgage_insurance + monthly_escrow
+        outflow_by_month.append(running_outflow)
+
+        future_prop_val = property_val_0 * (monthly_appreciation_factor ** m_idx)
+        equity_m = max(future_prop_val - row.balance, Decimal("0"))
+        home_equity_by_month.append(equity_m)
+
+    # After-tax financing cost calculation (IRS acquisition debt cap $750k)
+    after_tax_cost_by_month: list[Decimal] = list(costs_by_month)
+    if itemize_deductions and marginal_tax_rate > Decimal("0"):
+        std_deduction = Decimal("14600") if filing_status == "single" else Decimal("29200")
+        debt_limit_ratio = (
+            min(Decimal("1"), Decimal("750000") / option.loan_amount)
+            if option.loan_amount > Decimal("0")
+            else Decimal("1")
+        )
+
+        running_tax_savings = Decimal("0")
+        after_tax_costs: list[Decimal] = [net_upfront]
+
+        num_years = (len(schedule) + 11) // 12
+        for y in range(1, num_years + 1):
+            y_start = (y - 1) * 12
+            y_end = min(y * 12, len(schedule))
+            year_interest = sum(
+                (schedule[i].interest for i in range(y_start, y_end)), Decimal("0")
+            )
+            eligible_interest = year_interest * debt_limit_ratio
+            year_excess = max(Decimal("0"), eligible_interest - std_deduction)
+            year_tax_savings = year_excess * marginal_tax_rate
+            months_in_year = Decimal(str(y_end - y_start))
+            monthly_tax_savings = (
+                year_tax_savings / months_in_year if months_in_year > Decimal("0") else Decimal("0")
+            )
+
+            for m in range(y_start + 1, y_end + 1):
+                running_tax_savings += monthly_tax_savings
+                after_tax_costs.append(
+                    max(Decimal("0"), costs_by_month[m] - running_tax_savings)
+                )
+
+        if len(after_tax_costs) == len(costs_by_month):
+            after_tax_cost_by_month = after_tax_costs
+
     # Determine cost and balance at target horizon
     clamped_horizon = min(max(horizon_months, 0), option.term_months)
     cost_at_horizon = costs_by_month[clamped_horizon]
+    outflow_at_horizon = (
+        outflow_by_month[clamped_horizon]
+        if clamped_horizon < len(outflow_by_month)
+        else outflow_by_month[-1]
+    )
+    equity_at_horizon = (
+        home_equity_by_month[clamped_horizon]
+        if clamped_horizon < len(home_equity_by_month)
+        else home_equity_by_month[-1]
+    )
+    after_tax_at_horizon = (
+        after_tax_cost_by_month[clamped_horizon]
+        if clamped_horizon < len(after_tax_cost_by_month)
+        else after_tax_cost_by_month[-1]
+    )
 
     if clamped_horizon == 0:
         balance_at_horizon = option.loan_amount
@@ -76,6 +175,13 @@ def calculate_option_result(
         lender_credit=option.lender_credit,
         monthly_mi=monthly_mi,
         term_months=option.term_months,
+        total_outflow_by_month=tuple(outflow_by_month),
+        home_equity_by_month=tuple(home_equity_by_month),
+        after_tax_cost_by_month=tuple(after_tax_cost_by_month),
+        total_outflow_at_horizon=outflow_at_horizon,
+        home_equity_at_horizon=equity_at_horizon,
+        after_tax_cost_at_horizon=after_tax_at_horizon,
+        total_piti_monthly=total_piti_monthly,
     )
 
 
@@ -211,7 +317,10 @@ def compare_options(
         if horizon_months is not None
         else scenario.expected_horizon_months
     )
-    results = [calculate_option_result(opt, target_horizon) for opt in options]
+    results = [
+        calculate_option_result(opt, target_horizon, scenario=scenario)
+        for opt in options
+    ]
 
     recommended_id: UUID | None = None
     if results:

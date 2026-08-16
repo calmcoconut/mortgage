@@ -123,8 +123,19 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         self.driver.execute_script("window.costChart.zoom(1.5);")
         is_zoomed = self.driver.execute_script("return window.costChart.isZoomedOrPanned();")
         self.assertTrue(is_zoomed)
-
         reset_btn.click()
         is_zoomed_after_reset = self.driver.execute_script("return window.costChart.isZoomedOrPanned();")
         self.assertFalse(is_zoomed_after_reset)
+
+        # 7. Test Chart Mode Switcher buttons
+        btn_outflow = self.driver.find_element(By.ID, "btnModeOutflow")
+        btn_outflow.click()
+        chart_title = self.driver.find_element(By.ID, "mainChartTitle").text
+        self.assertIn("Total housing cash outflow", chart_title)
+
+        btn_equity = self.driver.find_element(By.ID, "btnModeEquity")
+        btn_equity.click()
+        chart_title_eq = self.driver.find_element(By.ID, "mainChartTitle").text
+        self.assertIn("home equity", chart_title_eq.lower())
+
 

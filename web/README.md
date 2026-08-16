@@ -11,18 +11,18 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 ├── [apps.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/apps.py)
 │   └── Django AppConfig registration for the web application.
 ├── [models.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py)
-│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L98), [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L151), [`RateApiCacheModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L167), [`RateApiBudgetModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L186), and [`RateApiSnapshotModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L200).
+│   └── Django ORM models: [`ScenarioModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L7), [`LoanOptionModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L124), [`BenchmarkPointModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L177), [`RateApiCacheModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L193), [`RateApiBudgetModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L212), and [`RateApiSnapshotModel`](file:///Users/alejandrodiaz/Documents/projects/loan/web/models.py#L226).
 ├── [forms.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py)
-│   └── Django ModelForms: [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L8) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L95) with decimal percentage-to-ratio conversions.
+│   └── Django ModelForms: [`ScenarioForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L31) and [`LoanOptionForm`](file:///Users/alejandrodiaz/Documents/projects/loan/web/forms.py#L283) with decimal percentage-to-ratio conversions and live currency inputs.
 ├── [services.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py)
-│   └── Domain boundary converters ([`scenario_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L15), [`loan_option_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L38)) and Chart.js precomputed serializer ([`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L78)).
+│   └── Domain boundary converters ([`scenario_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L19), [`loan_option_to_input()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L49)), Chart.js precomputed serializer ([`build_projected_costs_chart_data()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L132)), and JSON utilities ([`export_scenario_to_dict()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L304), [`import_or_update_scenario_from_dict()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/services.py#L373)).
 ├── integrations/
 │   └── [rateapi.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/integrations/rateapi.py)
 │       └── RateAPI.dev adapter with $25k amount-bucketed 24-hour caching, 18-call monthly budget guard, and confidence anomaly filtering.
 ├── [urls.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/urls.py)
-│   └── URL routing definitions for scenario management, HTMX live screening, matrix comparisons, projected costs, option CRUD, RateAPI previews, rate watch, and methodology.
+│   └── URL routing definitions for scenario management, JSON import/export/edit, HTMX live screening, matrix comparisons, projected costs, option CRUD, RateAPI previews, rate watch, and methodology.
 ├── [views.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py)
-│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L157), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L240), [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L90), [`scenario_enrich_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L596), and [`scenario_import_rateapi_offer()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L650).
+│   └── Request handlers including [`scenario_compare()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L143), [`scenario_projected_costs()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L226), [`scenario_screen_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L175), [`scenario_import_json()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L60), [`scenario_edit_json()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L112), [`scenario_enrich_preview()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L603), and [`scenario_import_rateapi_offer()`](file:///Users/alejandrodiaz/Documents/projects/loan/web/views.py#L657).
 ├── management/commands/
 │   ├── [fetch_fred_benchmarks.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/management/commands/fetch_fred_benchmarks.py)
 │   │   └── CLI command querying the Federal Reserve Economic Data (FRED) API for 5 years of weekly 30-year (`MORTGAGE30US`) and 15-year (`MORTGAGE15US`) rate series.
@@ -46,15 +46,19 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
     ├── [base.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/base.html)
     │   └── Master HTML skeleton with navigation bar, responsive drawer, and methodology footer.
     ├── [compare.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/compare.html)
-    │   └── Option comparison matrix page with hold period dropdown and Live Market Offers modal launcher.
+    │   └── Option comparison matrix page with hold period dropdown, JSON action buttons, and Live Market Offers modal launcher.
     ├── [data_sources.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/data_sources.html)
     │   └── Raw data inventory and cache dump with live text search, product filters, sortable column headers, CSV/JSON export, and decision query payload inspection.
     ├── [projected_costs.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/projected_costs.html)
-    │   └── Interactive holding horizon slider, discount rate input, KPI summary cards, and 3 Chart.js graphs.
+    │   └── Interactive holding horizon slider, discount rate input, KPI summary cards, projection metric mode switcher, and 3 Chart.js graphs.
     ├── [scenario_form.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_form.html)
-    │   └── Scenario creation form with live HTMX reactive preview container.
+    │   └── Scenario creation form with live HTMX reactive preview container, escrow fields, and appreciation/tax settings.
+    ├── [scenario_import_json.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_import_json.html)
+    │   └── Drag-and-drop file upload and interactive JSON editor for importing complete scenario and loan option payloads.
+    ├── [scenario_edit_json.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_edit_json.html)
+    │   └── Direct in-browser JSON editor for existing scenarios with format prettifier and 1-click clipboard copy.
     ├── [scenario_list.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/scenario_list.html)
-    │   └── Main dashboard displaying scenario cards, quick stats, and benchmark widget.
+    │   └── Main dashboard displaying scenario cards, quick stats, Import JSON button, and benchmark widget.
     ├── [option_form.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/option_form.html)
     │   └── Loan Option entry form with confidence source selection (Loan Estimate vs advertised quote).
     ├── [option_confirm_delete.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/option_confirm_delete.html)
