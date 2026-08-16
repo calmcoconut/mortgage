@@ -90,9 +90,17 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         self.assertIn("What's included?", info_card.text)
         self.assertIn("Not included", info_card.text)
         self.assertIn("Verified Loan Estimate", info_card.text)
-        self.assertIn("Advertised observation", info_card.text)
+        self.assertIn("Advertised Market Quote", info_card.text)
 
-        # 4. Test Discount rate sensitivity input
+        # 4. Assert Cost Driver Breakdown & TRID Disclaimer & Summary Table
+        body_text = self.driver.find_element(By.TAG_NAME, "body").text
+        self.assertIn("Cost Driver Breakdown", body_text)
+        self.assertIn("Upfront Net Fees", body_text)
+        self.assertIn("Consumer Notice", body_text)
+        self.assertIn("Loan Options Comparison Summary", body_text)
+        self.assertIn("recoup", body_text.lower())
+
+        # 5. Test Discount rate sensitivity input
         self.driver.execute_script("reloadWithDiscount('5.0');")
 
         wait.until(EC.url_contains("discount_rate=5.0"))
@@ -101,7 +109,7 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         )
         self.assertIn("Month 48", kpi_grid.text)
 
-        # 5. Assert Zoom plugin loaded & zoom/pan controls
+        # 6. Assert Zoom plugin loaded & zoom/pan controls
         zoom_plugin_registered = self.driver.execute_script(
             "return typeof Chart.registry.getPlugin('zoom') !== 'undefined';"
         )
@@ -119,3 +127,4 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         reset_btn.click()
         is_zoomed_after_reset = self.driver.execute_script("return window.costChart.isZoomedOrPanned();")
         self.assertFalse(is_zoomed_after_reset)
+

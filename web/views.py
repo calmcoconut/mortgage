@@ -272,6 +272,9 @@ def scenario_projected_costs(request: HttpRequest, scenario_id: UUID) -> HttpRes
     # 3. Monthly P&I difference
     savings_at_horizon = None
     pi_diff = None
+    upfront_diff = None
+    interest_diff = None
+    mi_diff = None
     if len(comparison.option_results) >= 2:
         opt_a = comparison.option_results[0]
         opt_b = comparison.option_results[1]
@@ -279,6 +282,14 @@ def scenario_projected_costs(request: HttpRequest, scenario_id: UUID) -> HttpRes
             opt_a.financing_cost_at_horizon - opt_b.financing_cost_at_horizon
         )
         pi_diff = abs(opt_a.monthly_pi - opt_b.monthly_pi)
+        upfront_diff = opt_b.net_upfront - opt_a.net_upfront
+        interest_diff = (
+            opt_b.cumulative_interest_at_horizon
+            - opt_a.cumulative_interest_at_horizon
+        )
+        mi_diff = (
+            opt_b.cumulative_mi_at_horizon - opt_a.cumulative_mi_at_horizon
+        )
 
     context = {
         "scenario": scenario,
@@ -292,9 +303,16 @@ def scenario_projected_costs(request: HttpRequest, scenario_id: UUID) -> HttpRes
         "chart_data_json": json.dumps(chart_data),
         "savings_at_horizon": savings_at_horizon,
         "pi_diff": pi_diff,
+        "upfront_diff": upfront_diff,
+        "interest_diff": interest_diff,
+        "mi_diff": mi_diff,
+        "break_even": comparison.break_even,
         "break_even_month": comparison.break_even.break_even_month
         if comparison.break_even
         else None,
+        "break_even_explanation": comparison.break_even.break_even_explanation
+        if comparison.break_even
+        else "",
     }
 
     if request.headers.get("HX-Request") and request.GET.get("partial") == "charts":

@@ -93,10 +93,10 @@ def test_scenario_screening_preview_htmx(client):
     resp = client.post(
         url,
         {
-            "property_value": "500000",
-            "loan_amount": "400000",
-            "gross_monthly_income": "10000",
-            "recurring_monthly_debts": "500",
+            "property_value": "$650,000",
+            "loan_amount": "$480,000",
+            "gross_monthly_income": "$15,000",
+            "recurring_monthly_debts": "$1,000",
             "fico_band": "760+",
             "program": "conventional",
         },
@@ -105,3 +105,35 @@ def test_scenario_screening_preview_htmx(client):
     content = resp.content.decode()
     assert "conventional" in content.lower()
     assert "LIKELY" in content
+
+
+@pytest.mark.django_db
+def test_scenario_create_with_formatted_currency_post(client):
+    url = reverse("web:scenario_create")
+    post_data = {
+        "name": "Santa Clara Purchase",
+        "purpose": "purchase",
+        "property_value": "$650,000",
+        "loan_amount": "$480,000",
+        "down_payment": "$170,000",
+        "fico_band": "760+",
+        "occupancy": "primary",
+        "property_type": "townhome",
+        "state": "CA",
+        "program": "conventional",
+        "term_months": "360",
+        "expected_horizon_months": "84",
+        "gross_monthly_income": "$15,000",
+        "recurring_monthly_debts": "$1,000",
+        "estimated_property_tax_monthly": "$650",
+        "estimated_homeowners_insurance_monthly": "$120",
+        "estimated_hoa_monthly": "$250",
+    }
+    resp = client.post(url, post_data)
+    assert resp.status_code == 302
+    created = ScenarioModel.objects.get(name="Santa Clara Purchase")
+    assert created.property_value == Decimal("650000.00")
+    assert created.loan_amount == Decimal("480000.00")
+    assert created.down_payment == Decimal("170000.00")
+    assert created.gross_monthly_income == Decimal("15000.00")
+

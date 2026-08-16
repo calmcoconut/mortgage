@@ -83,3 +83,21 @@ def test_orm_to_core_conversion_and_comparison():
     assert len(chart_data["series"]) == 2
     assert chart_data["series"][0]["label"] == "Option A: 6.50% / 0 pts"
     assert chart_data["series"][0]["financing_cost"][0] == 0.0  # month 0 upfront
+    assert "break_even_explanation" in chart_data
+    assert "recoup" in chart_data["break_even_explanation"].lower()
+
+
+def test_format_clean_label():
+    from web.services import format_clean_label
+
+    assert format_clean_label("sfcu") == "San Francisco Federal Credit Union"
+    assert (
+        format_clean_label("Sacramento Credit Union (30-YEAR FIXED)")
+        == "Sacramento Credit Union · 30Y Fixed"
+    )
+    assert (
+        format_clean_label("tech cu (7/1 arm conforming)")
+        == "Tech CU · 7/1 ARM"
+    )
+    assert format_clean_label("Option A") == "Option A"
+

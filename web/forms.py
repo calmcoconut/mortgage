@@ -1,11 +1,137 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django import forms
 
 from web.models import LoanOptionModel, ScenarioModel
 
 
+class CurrencyDecimalField(forms.DecimalField):
+    """Custom DecimalField accepting formatted currency strings like '$650,000' or '650,000.00'."""
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, str):
+            value = value.strip().replace("$", "").replace(",", "")
+        return super().to_python(value)
+
+
+def format_currency_initial(val):
+    if val is None or val == "":
+        return None
+    try:
+        dec = Decimal(str(val))
+        if dec == dec.to_integral():
+            return f"${int(dec):,}"
+        return f"${dec:,.2f}"
+    except (InvalidOperation, ValueError, TypeError):
+        return str(val)
+
+
 class ScenarioForm(forms.ModelForm):
+    property_value = CurrencyDecimalField(
+        label="Home Price / Property Value ($)",
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$850,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    loan_amount = CurrencyDecimalField(
+        label="Loan Amount ($)",
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$680,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    down_payment = CurrencyDecimalField(
+        label="Down Payment ($)",
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$170,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    gross_monthly_income = CurrencyDecimalField(
+        label="Gross Monthly Income ($)",
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$15,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    recurring_monthly_debts = CurrencyDecimalField(
+        label="Recurring Monthly Debts ($)",
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$1,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    estimated_property_tax_monthly = CurrencyDecimalField(
+        label="Estimated Property Tax ($/mo)",
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$850",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    estimated_homeowners_insurance_monthly = CurrencyDecimalField(
+        label="Estimated Homeowners Insurance ($/mo)",
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$140",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    estimated_hoa_monthly = CurrencyDecimalField(
+        label="Estimated HOA Monthly ($/mo)",
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$0",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+
     class Meta:
         model = ScenarioModel
         fields = [
@@ -36,15 +162,6 @@ class ScenarioForm(forms.ModelForm):
                 }
             ),
             "purpose": forms.Select(attrs={"class": "form-select"}),
-            "property_value": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "850000", "step": "1000"}
-            ),
-            "loan_amount": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "680000", "step": "1000"}
-            ),
-            "down_payment": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "170000", "step": "1000"}
-            ),
             "fico_band": forms.Select(attrs={"class": "form-select"}),
             "occupancy": forms.Select(attrs={"class": "form-select"}),
             "property_type": forms.Select(attrs={"class": "form-select"}),
@@ -61,21 +178,6 @@ class ScenarioForm(forms.ModelForm):
             "expected_horizon_months": forms.NumberInput(
                 attrs={"class": "form-input", "placeholder": "84", "value": "84"}
             ),
-            "gross_monthly_income": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "15000", "step": "100"}
-            ),
-            "recurring_monthly_debts": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "1000", "step": "100"}
-            ),
-            "estimated_property_tax_monthly": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "850", "step": "10"}
-            ),
-            "estimated_homeowners_insurance_monthly": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "140", "step": "10"}
-            ),
-            "estimated_hoa_monthly": forms.NumberInput(
-                attrs={"class": "form-input", "placeholder": "0", "step": "10"}
-            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -90,9 +192,91 @@ class ScenarioForm(forms.ModelForm):
             self.fields["occupancy"].initial = "primary"
             self.fields["property_type"].initial = "single_family"
             self.initial.setdefault("property_type", "single_family")
+        else:
+            for field_name in [
+                "property_value",
+                "loan_amount",
+                "down_payment",
+                "gross_monthly_income",
+                "recurring_monthly_debts",
+                "estimated_property_tax_monthly",
+                "estimated_homeowners_insurance_monthly",
+                "estimated_hoa_monthly",
+            ]:
+                val = getattr(self.instance, field_name, None)
+                if val is not None:
+                    formatted = format_currency_initial(val)
+                    if formatted is not None:
+                        self.initial[field_name] = formatted
 
 
 class LoanOptionForm(forms.ModelForm):
+    loan_amount = CurrencyDecimalField(
+        label="Loan Amount ($)",
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$500,000",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    lender_credit = CurrencyDecimalField(
+        label="Lender Credits ($)",
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        initial=Decimal("0.0"),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$0",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    lender_fees = CurrencyDecimalField(
+        label="Lender Fees ($)",
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        initial=Decimal("0.0"),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$0",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    monthly_mi = CurrencyDecimalField(
+        label="Monthly MI ($/mo)",
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$0",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+    upfront_mi = CurrencyDecimalField(
+        label="Upfront MI ($) (FHA/USDA)",
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input currency-input",
+                "placeholder": "$0",
+                "inputmode": "numeric",
+            }
+        ),
+    )
     rate_percent = forms.DecimalField(
         label="Note Rate (%)",
         max_digits=10,
@@ -134,6 +318,28 @@ class LoanOptionForm(forms.ModelForm):
             "upfront_mi",
             "notes",
         ]
+        widgets = {
+            "label": forms.TextInput(
+                attrs={
+                    "class": "form-input",
+                    "placeholder": "e.g. 30Y Fixed (Option A)",
+                }
+            ),
+            "source_type": forms.Select(attrs={"class": "form-select"}),
+            "entered_on": forms.DateInput(
+                attrs={"class": "form-input", "type": "date"}
+            ),
+            "term_months": forms.NumberInput(
+                attrs={"class": "form-input", "placeholder": "360"}
+            ),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-input",
+                    "rows": 3,
+                    "placeholder": "Optional transcription notes, lender name, or locked rate details",
+                }
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -150,6 +356,32 @@ class LoanOptionForm(forms.ModelForm):
                 self.fields["points_percent"].initial = (
                     self.instance.points_pct * Decimal("100")
                 ).normalize()
+            for field_name in [
+                "loan_amount",
+                "lender_credit",
+                "lender_fees",
+                "monthly_mi",
+                "upfront_mi",
+            ]:
+                val = getattr(self.instance, field_name, None)
+                if val is not None:
+                    formatted = format_currency_initial(val)
+                    if formatted is not None:
+                        self.initial[field_name] = formatted
+
+        # Also format any passed initial dict
+        if "initial" in kwargs and kwargs["initial"]:
+            for field_name in [
+                "loan_amount",
+                "lender_credit",
+                "lender_fees",
+                "monthly_mi",
+                "upfront_mi",
+            ]:
+                if field_name in self.initial and self.initial[field_name] is not None:
+                    formatted = format_currency_initial(self.initial[field_name])
+                    if formatted is not None:
+                        self.initial[field_name] = formatted
 
     def clean(self):
         cleaned_data = super().clean()

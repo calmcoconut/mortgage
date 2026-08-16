@@ -48,8 +48,8 @@
 
         <div class="form-group">
           <label class="form-label">Home Price / Property Value ($)</label>
-          <input type="number" name="property_value" id="id_property_value" class="form-input" 
-                 value="{{ form.property_value.value|default:'' }}" step="1000"
+          <input type="text" name="property_value" id="id_property_value" class="form-input currency-input" 
+                 value="{{ form.property_value.value|default:'' }}" placeholder="$850,000" inputmode="numeric"
                  hx-post="{% url 'web:scenario_screen_preview' %}"
                  hx-trigger="input delay:300ms, change"
                  hx-target="#screening-preview-container"
@@ -58,8 +58,8 @@
 
         <div class="form-group">
           <label class="form-label">Loan Amount ($)</label>
-          <input type="number" name="loan_amount" id="id_loan_amount" class="form-input"
-                 value="{{ form.loan_amount.value|default:'' }}" step="1000"
+          <input type="text" name="loan_amount" id="id_loan_amount" class="form-input currency-input"
+                 value="{{ form.loan_amount.value|default:'' }}" placeholder="$680,000" inputmode="numeric"
                  hx-post="{% url 'web:scenario_screen_preview' %}"
                  hx-trigger="input delay:300ms, change"
                  hx-target="#screening-preview-container"
@@ -68,7 +68,12 @@
 
         <div class="form-group">
           <label class="form-label">Down Payment ($)</label>
-          {{ form.down_payment }}
+          <input type="text" name="down_payment" id="id_down_payment" class="form-input currency-input"
+                 value="{{ form.down_payment.value|default:'' }}" placeholder="$170,000" inputmode="numeric"
+                 hx-post="{% url 'web:scenario_screen_preview' %}"
+                 hx-trigger="input delay:300ms, change"
+                 hx-target="#screening-preview-container"
+                 hx-include="closest form">
         </div>
 
         <div class="form-group">
@@ -93,8 +98,8 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Gross Monthly Income ($)</label>
-          <input type="number" name="gross_monthly_income" id="id_gross_monthly_income" class="form-input"
-                 value="{{ form.gross_monthly_income.value|default:'' }}" step="100"
+          <input type="text" name="gross_monthly_income" id="id_gross_monthly_income" class="form-input currency-input"
+                 value="{{ form.gross_monthly_income.value|default:'' }}" placeholder="$15,000" inputmode="numeric"
                  hx-post="{% url 'web:scenario_screen_preview' %}"
                  hx-trigger="input delay:300ms, change"
                  hx-target="#screening-preview-container"
@@ -103,8 +108,8 @@
 
         <div class="form-group">
           <label class="form-label">Recurring Monthly Debts ($)</label>
-          <input type="number" name="recurring_monthly_debts" id="id_recurring_monthly_debts" class="form-input"
-                 value="{{ form.recurring_monthly_debts.value|default:'' }}" step="50"
+          <input type="text" name="recurring_monthly_debts" id="id_recurring_monthly_debts" class="form-input currency-input"
+                 value="{{ form.recurring_monthly_debts.value|default:'' }}" placeholder="$1,000" inputmode="numeric"
                  hx-post="{% url 'web:scenario_screen_preview' %}"
                  hx-trigger="input delay:300ms, change"
                  hx-target="#screening-preview-container"
@@ -161,4 +166,38 @@
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const propValInput = document.getElementById('id_property_value');
+  const downPmtInput = document.getElementById('id_down_payment');
+  const loanAmtInput = document.getElementById('id_loan_amount');
+
+  function parseVal(v) {
+    if (!v) return 0;
+    const clean = String(v).replace(/[^0-9.]/g, '');
+    return parseFloat(clean) || 0;
+  }
+
+  function formatDollar(num) {
+    return '$' + Math.round(num).toLocaleString('en-US');
+  }
+
+  function syncCalculatedLoan() {
+    if (!propValInput || !downPmtInput || !loanAmtInput) return;
+    const pv = parseVal(propValInput.value);
+    const dp = parseVal(downPmtInput.value);
+    if (pv > 0 && dp >= 0 && pv >= dp) {
+      loanAmtInput.value = formatDollar(pv - dp);
+      // Notify HTMX for live screening update
+      htmx.trigger(loanAmtInput, 'change');
+    }
+  }
+
+  if (propValInput && downPmtInput) {
+    propValInput.addEventListener('change', syncCalculatedLoan);
+    downPmtInput.addEventListener('change', syncCalculatedLoan);
+  }
+});
+</script>
 {% endblock %}

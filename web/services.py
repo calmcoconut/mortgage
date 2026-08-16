@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -75,6 +76,60 @@ def compare_scenario(
     )
 
 
+def format_clean_label(raw_label: str) -> str:
+    """Standardize lender and option labels into clean, title-cased professional strings."""
+    if not raw_label:
+        return "Conforming Option"
+
+    raw = raw_label.strip()
+
+    # Map known lowercase abbreviations
+    known_abbrevs = {
+        "sfcu": "San Francisco Federal Credit Union",
+        "tech cu": "Tech CU",
+        "star one": "Star One Credit Union",
+        "first tech": "First Tech Federal Credit Union",
+    }
+    if raw.lower() in known_abbrevs:
+        return known_abbrevs[raw.lower()]
+
+    # Check for uppercase parenthesis product tails like (30-YEAR FIXED) or (7/1 ARM CONFORMING)
+    match_tail = re.search(
+        r"\s*\(((?:30|15|10|7|5|3)(?:-year|-yr|\/1)?\s*(?:fixed|arm)?(?:\s*conforming)?)\)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if match_tail:
+        product_text = match_tail.group(1).strip().upper()
+        # Clean product text: "30-YEAR FIXED" -> "30Y Fixed", "7/1 ARM" -> "7/1 ARM"
+        if "30" in product_text and "FIXED" in product_text:
+            cleaned_product = "30Y Fixed"
+        elif "15" in product_text and "FIXED" in product_text:
+            cleaned_product = "15Y Fixed"
+        elif "10" in product_text and "FIXED" in product_text:
+            cleaned_product = "10Y Fixed"
+        elif "7/1" in product_text:
+            cleaned_product = "7/1 ARM"
+        elif "5/1" in product_text:
+            cleaned_product = "5/1 ARM"
+        elif "3/1" in product_text:
+            cleaned_product = "3/1 ARM"
+        else:
+            cleaned_product = product_text.title()
+
+        lender_prefix = raw[: match_tail.start()].strip()
+        if lender_prefix.lower() in known_abbrevs:
+            lender_prefix = known_abbrevs[lender_prefix.lower()]
+        elif lender_prefix.isupper() or lender_prefix.islower():
+            lender_prefix = lender_prefix.title()
+        return f"{lender_prefix} · {cleaned_product}"
+
+    if raw.isupper() and len(raw) > 5:
+        return raw.title()
+
+    return raw
+
+
 def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, Any]:
     """Serialize comparison result into server-computed JSON data structures for Chart.js.
     Per Section 7.2 of Design Spec: Chart.js never calculates source-of-truth numbers.
@@ -91,7 +146,7 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
         cost_series = [float(round(c, 2)) for c in opt.financing_cost_by_month]
         # Pad if option term was shorter
         if len(cost_series) < len(months):
-            cost_series.extend([cost_series[-1]] * (len(months) - cost_series))
+            cost_series.extend([cost_series[-1]] * (len(months) - len(cost_series)))
 
         # Precomputed remaining loan balance (month 0 is initial loan amount, then row balances)
         balance_series = [
@@ -115,17 +170,35 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
             float(round(r.mortgage_insurance, 2)) for r in opt.amortization
         ]
 
+        is_verified = opt.source_type in ["loan_estimate", "manual"]
+        clean_lbl = format_clean_label(opt.label)
+
         series.append(
             {
                 "option_id": str(opt.option_id),
-                "label": opt.label,
+                "label": clean_lbl,
+                "raw_label": opt.label,
                 "source_type": str(opt.source_type),
+                "is_verified": is_verified,
                 "monthly_pi": float(round(opt.monthly_pi, 2)),
                 "financing_cost": cost_series,
                 "balance": balance_series,
                 "principal": principal_by_month,
                 "interest": interest_by_month,
                 "mi": mi_by_month,
+                "net_upfront": float(round(opt.net_upfront, 2)),
+                "cumulative_interest": float(
+                    round(opt.cumulative_interest_at_horizon, 2)
+                ),
+                "cumulative_mi": float(round(opt.cumulative_mi_at_horizon, 2)),
+                "total_horizon_cost": float(
+                    round(opt.financing_cost_at_horizon, 2)
+                ),
+                "note_rate_pct": float(round(opt.note_rate * Decimal("100"), 3)),
+                "apr_pct": float(round(opt.apr * Decimal("100"), 3))
+                if opt.apr
+                else None,
+                "points_pct": float(round(opt.points_pct * Decimal("100"), 3)),
             }
         )
 
@@ -135,5 +208,9 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
         "break_even_month": comparison.break_even.break_even_month
         if comparison.break_even
         else None,
+        "break_even_explanation": comparison.break_even.break_even_explanation
+        if comparison.break_even
+        else "",
         "horizon_months": comparison.horizon_months,
     }
+

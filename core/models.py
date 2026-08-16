@@ -81,6 +81,26 @@ class OptionResult:
     financing_cost_by_month: tuple[Decimal, ...]
     financing_cost_at_horizon: Decimal
     remaining_balance_at_horizon: Decimal
+    cumulative_interest_at_horizon: Decimal = Decimal("0")
+    cumulative_mi_at_horizon: Decimal = Decimal("0")
+    note_rate: Decimal = Decimal("0")
+    apr: Decimal | None = None
+    points_pct: Decimal = Decimal("0")
+    lender_fees: Decimal = Decimal("0")
+    lender_credit: Decimal = Decimal("0")
+    monthly_mi: Decimal = Decimal("0")
+    term_months: int = 360
+
+    @property
+    def rate_pct_display(self) -> str:
+        return f"{(self.note_rate * Decimal('100')):.3f}%"
+
+    @property
+    def apr_pct_display(self) -> str | None:
+        if self.apr is not None:
+            return f"{(self.apr * Decimal('100')):.3f}% APR"
+        return None
+
 
 
 @dataclass(frozen=True)
@@ -91,6 +111,11 @@ class BreakEvenResult:
     savings_at_horizon: Decimal
     discounted_break_even_month: int | None = None
     discounted_savings_at_horizon: Decimal | None = None
+    break_even_explanation: str = ""
+    upfront_delta: Decimal = Decimal("0")
+    interest_delta_at_horizon: Decimal = Decimal("0")
+    mi_delta_at_horizon: Decimal = Decimal("0")
+    monthly_pi_delta: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True)

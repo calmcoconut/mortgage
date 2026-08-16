@@ -97,3 +97,25 @@ class TestScenarioScreeningE2E(StaticLiveServerTestCase):
             EC.presence_of_element_located((By.CLASS_NAME, "page-title"))
         )
         self.assertIn("Compare", header.text)
+
+    def test_currency_input_formatting_on_typing(self):
+        wait = WebDriverWait(self.driver, 10)
+        self.driver.get(f"{self.live_server_url}/scenarios/new/")
+
+        prop_val = wait.until(EC.presence_of_element_located((By.ID, "id_property_value")))
+        prop_val.clear()
+        prop_val.send_keys("650000")
+
+        # Check that property_value automatically formats to $650,000
+        self.assertEqual(prop_val.get_attribute("value"), "$650,000")
+
+        down_pmt = self.driver.find_element(By.ID, "id_down_payment")
+        down_pmt.clear()
+        down_pmt.send_keys("170000")
+        self.assertEqual(down_pmt.get_attribute("value"), "$170,000")
+
+        # Down payment change auto-calculates loan amount $650,000 - $170,000 = $480,000
+        down_pmt.send_keys("\t")  # blur/change event
+        loan_amt = self.driver.find_element(By.ID, "id_loan_amount")
+        wait.until(lambda d: loan_amt.get_attribute("value") == "$480,000")
+

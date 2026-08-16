@@ -4,83 +4,243 @@
 {% block title %}Projected Financing Costs — {{ scenario.name }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">Projected financing costs</h1>
-  <p class="page-subtitle">Compare the cost of each option over your expected holding period.</p>
+<div class="page-header" style="margin-bottom: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1 class="page-title">Projected financing costs</h1>
+      <p class="page-subtitle">Compare cumulative financing costs, amortized interest, and paydown schedules across loan options.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'web:scenario_compare' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">
+        ← Back to Matrix
+      </a>
+      <a href="{% url 'web:scenario_edit' scenario_id=scenario.id %}" class="btn btn-outline btn-sm">
+        Edit Scenario
+      </a>
+    </div>
+  </div>
 </div>
 
 <!-- Controls Bar -->
-<div class="controls-row">
-  <div class="control-group">
-    <span class="control-label">Hold period</span>
-    <div class="slider-container">
-      <input type="range" min="1" max="30" value="{{ horizon_years }}" class="slider-input" id="horizonSlider"
+<div class="controls-row" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+  <div class="control-group" style="flex: 1; min-width: 260px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <span class="control-label" style="font-weight: 700; color: #1e293b; font-size: 0.875rem;">Holding period (Horizon)</span>
+      <span class="pill-badge pill-badge-blue" id="horizonValuePill" style="font-weight: 700; font-size: 0.85rem;">{{ horizon_years }} years ({{ horizon_months }} mo)</span>
+    </div>
+    <div class="slider-container" style="width: 100%;">
+      <input type="range" min="1" max="30" value="{{ horizon_years }}" class="slider-input" id="horizonSlider" style="width: 100%; accent-color: #0284c7;"
              oninput="updateHorizonDisplay(this.value)"
              onchange="reloadWithHorizon(this.value)">
-      <span class="pill-badge pill-badge-gray" id="horizonValuePill">{{ horizon_years }} years</span>
+      <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; padding: 0 2px;">
+        <span style="{% if horizon_years == 1 %}font-weight:700; color:#0284c7;{% endif %}">1y</span>
+        <span style="{% if horizon_years == 3 %}font-weight:700; color:#0284c7;{% endif %}">3y</span>
+        <span style="{% if horizon_years == 5 %}font-weight:700; color:#0284c7;{% endif %}">5y</span>
+        <span style="{% if horizon_years == 7 %}font-weight:700; color:#0284c7;{% endif %}">7y</span>
+        <span style="{% if horizon_years == 10 %}font-weight:700; color:#0284c7;{% endif %}">10y</span>
+        <span style="{% if horizon_years == 15 %}font-weight:700; color:#0284c7;{% endif %}">15y</span>
+        <span style="{% if horizon_years == 20 %}font-weight:700; color:#0284c7;{% endif %}">20y</span>
+        <span style="{% if horizon_years == 30 %}font-weight:700; color:#0284c7;{% endif %}">30y</span>
+      </div>
     </div>
   </div>
 
-  <div class="control-group">
-    <span class="control-label">Discount rate</span>
-    <div style="display: flex; align-items: center; gap: 4px;">
-      <input type="number" step="0.5" min="0" max="15" value="{{ discount_rate_display }}" id="discountRateInput" class="form-input" style="width: 80px; padding: 6px 10px; font-size: 0.875rem;"
+  <div class="control-group" style="border-left: 1px solid var(--border-color); padding-left: 20px;">
+    <span class="control-label" style="font-weight: 700; color: #1e293b; font-size: 0.875rem; display: block; margin-bottom: 6px;">Discount rate (NPV)</span>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <input type="number" step="0.5" min="0" max="15" value="{{ discount_rate_display }}" id="discountRateInput" class="form-input" style="width: 84px; padding: 6px 10px; font-size: 0.875rem;"
              onchange="reloadWithDiscount(this.value)">
-      <span style="font-size: 0.85rem; color: var(--text-muted);">%</span>
+      <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">% / yr</span>
     </div>
   </div>
 
-  <div class="control-group" style="margin-left: auto;">
-    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: #334155;">
+  <div class="control-group" style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #334155;">
       <input type="checkbox" id="includeMiCheckbox" checked style="accent-color: #0d9488; width: 18px; height: 18px;">
-      Include mortgage insurance
+      Include mortgage insurance (MI)
     </label>
   </div>
 </div>
 
 <!-- KPI Metric Summary Cards -->
-<div class="kpi-grid">
-  <div class="kpi-card">
-    <div class="kpi-title">
-      {% if comparison.option_results|length > 1 %}
-        {{ comparison.option_results.1.label|truncatechars:20 }} savings at {{ horizon_years }} years:
-      {% else %}
-        Estimated cost at {{ horizon_years }} years:
-      {% endif %}
+<div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 12px;">
+  <div class="kpi-card" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm); position: relative;">
+    <div class="kpi-title" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
+      <span>
+        {% if comparison.option_results|length > 1 %}
+          Candidate vs Baseline Net Savings ({{ horizon_years }}Y)
+        {% else %}
+          Total Cost at {{ horizon_years }} Years
+        {% endif %}
+      </span>
+      <span title="Net savings includes net upfront fees (points, fees, credits) + cumulative interest + mortgage insurance over {{ horizon_years }} years. Property tax & home insurance are excluded." style="cursor: help; color: #64748b; font-size: 1rem;">ℹ️</span>
     </div>
-    <div class="kpi-value" style="color: #0f172a;">
-      {% if savings_at_horizon %}
-        ${{ savings_at_horizon|floatformat:0|intcomma }}
+    <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: {% if savings_at_horizon and savings_at_horizon > 0 %}#047857{% elif savings_at_horizon and savings_at_horizon < 0 %}#b91c1c{% else %}#0f172a{% endif %}; margin: 6px 0 2px 0;">
+      {% if savings_at_horizon is not None %}
+        {% if savings_at_horizon > 0 %}+{% endif %}${{ savings_at_horizon|floatformat:0|intcomma }}
       {% elif comparison.option_results %}
         ${{ comparison.option_results.0.financing_cost_at_horizon|floatformat:0|intcomma }}
       {% else %}
         $0
       {% endif %}
     </div>
+    <div style="font-size: 0.775rem; color: var(--text-muted);">
+      {% if comparison.option_results|length > 1 %}
+        Baseline: ${{ comparison.option_results.0.financing_cost_at_horizon|floatformat:0|intcomma }} · Candidate: ${{ comparison.option_results.1.financing_cost_at_horizon|floatformat:0|intcomma }}
+      {% else %}
+        Cumulative financing cost over {{ horizon_years }} years
+      {% endif %}
+    </div>
   </div>
 
-  <div class="kpi-card">
-    <div class="kpi-title">Points break-even:</div>
-    <div class="kpi-value" style="color: #0f172a;">
+  <div class="kpi-card" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+    <div class="kpi-title" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
+      <span>Points & Upfront Break-Even</span>
+      <span title="The month in which lower monthly interest payments offset any higher upfront discount points or lender fees." style="cursor: help; color: #64748b; font-size: 1rem;">ℹ️</span>
+    </div>
+    <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 6px 0 2px 0;">
       {% if break_even_month %}
-        Month {{ break_even_month }}
+        Month {{ break_even_month }} <span style="font-size: 0.95rem; font-weight: 600; color: #0d9488;">({% widthratio break_even_month 12 1 %} yrs)</span>
       {% else %}
         No break-even
       {% endif %}
     </div>
+    <div style="font-size: 0.775rem; color: {% if break_even_month and break_even_month <= horizon_months %}#047857{% else %}#475569{% endif %}; line-height: 1.35;">
+      {% if break_even_explanation %}
+        {{ break_even_explanation }}
+      {% else %}
+        Comparing upfront fees and interest trajectories
+      {% endif %}
+    </div>
   </div>
 
-  <div class="kpi-card">
-    <div class="kpi-title">Monthly P&I difference:</div>
-    <div class="kpi-value" style="color: #0f172a;">
+  <div class="kpi-card" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+    <div class="kpi-title" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
+      <span>Monthly Payment Delta (P&I)</span>
+      <span title="Difference in monthly principal & interest payment between candidate and baseline option." style="cursor: help; color: #64748b; font-size: 1rem;">ℹ️</span>
+    </div>
+    <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 6px 0 2px 0;">
       {% if pi_diff is not None %}
-        ${{ pi_diff|floatformat:0|intcomma }}
+        ${{ pi_diff|floatformat:0|intcomma }} <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">/ mo</span>
       {% else %}
-        $0
+        $0 / mo
+      {% endif %}
+    </div>
+    <div style="font-size: 0.775rem; color: var(--text-muted);">
+      {% if comparison.option_results|length > 1 %}
+        {{ comparison.option_results.0.label|truncatechars:18 }}: ${{ comparison.option_results.0.monthly_pi|floatformat:0|intcomma }}/mo vs {{ comparison.option_results.1.label|truncatechars:18 }}: ${{ comparison.option_results.1.monthly_pi|floatformat:0|intcomma }}/mo
+      {% else %}
+        Monthly principal & interest payment
       {% endif %}
     </div>
   </div>
 </div>
+
+<!-- Cost Driver Component Breakdown Banner (Explains 7-Year Delta) -->
+{% if comparison.option_results|length > 1 and upfront_diff is not None %}
+<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center;">
+  <div style="font-size: 0.85rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+    <span>🔍 {{ horizon_years }}-Year Cost Driver Breakdown:</span>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; font-size: 0.825rem;">
+    <div>
+      <span style="color: var(--text-muted);">Upfront Net Fees:</span>
+      <strong style="color: {% if upfront_diff > 0 %}#b91c1c{% elif upfront_diff < 0 %}#047857{% else %}#334155{% endif %};">
+        {% if upfront_diff > 0 %}+{% endif %}${{ upfront_diff|floatformat:0|intcomma }}
+      </strong>
+    </div>
+    <div>
+      <span style="color: var(--text-muted);">{{ horizon_years }}Y Interest:</span>
+      <strong style="color: {% if interest_diff > 0 %}#b91c1c{% elif interest_diff < 0 %}#047857{% else %}#334155{% endif %};">
+        {% if interest_diff > 0 %}+{% endif %}${{ interest_diff|floatformat:0|intcomma }}
+      </strong>
+    </div>
+    <div>
+      <span style="color: var(--text-muted);">{{ horizon_years }}Y MI:</span>
+      <strong style="color: {% if mi_diff > 0 %}#b91c1c{% elif mi_diff < 0 %}#047857{% else %}#334155{% endif %};">
+        {% if mi_diff > 0 %}+{% endif %}${{ mi_diff|floatformat:0|intcomma }}
+      </strong>
+    </div>
+    <div style="border-left: 1px solid #cbd5e1; padding-left: 12px;">
+      <span style="color: var(--text-muted);">Net {{ horizon_years }}Y Gap:</span>
+      <strong style="color: {% if savings_at_horizon and savings_at_horizon > 0 %}#047857{% elif savings_at_horizon and savings_at_horizon < 0 %}#b91c1c{% else %}#0f172a{% endif %};">
+        {% if savings_at_horizon and savings_at_horizon > 0 %}+{% endif %}${{ savings_at_horizon|floatformat:0|intcomma }} savings
+      </strong>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- TRID Estimate Disclaimer Notice -->
+<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 0.775rem; color: #1e40af;">
+  <span style="font-size: 1rem;">🛡️</span>
+  <span><strong>Consumer Notice:</strong> Projected costs are calculated estimates based on amortization formulas, declared rates, and stated holding horizons. They do not constitute an official Loan Estimate or a binding offer of credit under TRID rules.</span>
+</div>
+
+<!-- Compact Comparison Summary Table (Baymard Scannability) -->
+{% if comparison.option_results %}
+<div class="card" style="padding: 18px 22px; margin-bottom: 24px; overflow-x: auto;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0;">Loan Options Comparison Summary</h3>
+    <span style="font-size: 0.8rem; color: var(--text-muted);">All numbers server-calculated for {{ horizon_years }}-year holding period</span>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+    <thead>
+      <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+        <th style="padding: 10px 8px;">Option / Lender</th>
+        <th style="padding: 10px 8px;">Trust Evidence</th>
+        <th style="padding: 10px 8px; text-align: right;">Rate / APR</th>
+        <th style="padding: 10px 8px; text-align: right;">Net Upfront Fees</th>
+        <th style="padding: 10px 8px; text-align: right;">Monthly P&I</th>
+        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Cumulative Interest</th>
+        <th style="padding: 10px 8px; text-align: right;">{{ horizon_years }}Y Total Financing Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for opt in comparison.option_results %}
+      <tr style="border-bottom: 1px solid #f1f5f9; {% if comparison.recommended_option_id == opt.option_id %}background: #f0fdf4;{% endif %}">
+        <td style="padding: 12px 8px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          <span class="option-color-indicator" data-option-id="{{ opt.option_id }}" style="display: inline-block; width: 12px; height: 12px; border-radius: 3px;"></span>
+          <span>{{ opt.label }}</span>
+          {% if comparison.recommended_option_id == opt.option_id %}
+            <span class="badge" style="background: #dcfce7; color: #166534; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">★ Recommended</span>
+          {% endif %}
+        </td>
+        <td style="padding: 12px 8px;">
+          {% if opt.source_type == "loan_estimate" or opt.source_type == "manual" %}
+            <span class="pill-badge pill-badge-blue" style="font-size: 0.75rem; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;">
+              <span>──</span> Verified LE
+            </span>
+          {% else %}
+            <span class="pill-badge pill-badge-amber" style="font-size: 0.75rem; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;">
+              <span>- -</span> Advertised
+            </span>
+          {% endif %}
+        </td>
+        <td style="padding: 12px 8px; text-align: right;">
+          <strong>{{ opt.rate_pct_display }}</strong>
+          {% if opt.apr_pct_display %}
+            <span style="color: var(--text-muted); font-size: 0.775rem;"> / {{ opt.apr_pct_display }}</span>
+          {% endif %}
+        </td>
+        <td style="padding: 12px 8px; text-align: right;">
+          ${{ opt.net_upfront|floatformat:0|intcomma }}
+        </td>
+        <td style="padding: 12px 8px; text-align: right; font-weight: 600;">
+          ${{ opt.monthly_pi|floatformat:0|intcomma }}
+        </td>
+        <td style="padding: 12px 8px; text-align: right; color: #475569;">
+          ${{ opt.cumulative_interest_at_horizon|floatformat:0|intcomma }}
+        </td>
+        <td style="padding: 12px 8px; text-align: right; font-weight: 700; color: #0f172a;">
+          ${{ opt.financing_cost_at_horizon|floatformat:0|intcomma }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <!-- Charts & Info Layout -->
 <div class="charts-layout">
@@ -91,10 +251,11 @@
       <div class="chart-header">
         <div>
           <h3 class="chart-title">Interactive cumulative financing cost chart</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0 0;">Solid curves = Verified Loan Estimates · Dashed curves = Advertised market quotes</p>
         </div>
         <div class="chart-toolbar">
           <span class="chart-hint">Scroll / drag to zoom & pan</span>
-          <button type="button" class="btn-zoom-reset" onclick="costChart.resetZoom()">
+          <button type="button" class="btn-zoom-reset" onclick="if(window.costChart) costChart.resetZoom()">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
@@ -103,7 +264,7 @@
           </button>
         </div>
       </div>
-      <div class="chart-canvas-wrapper" style="height: 320px;">
+      <div class="chart-canvas-wrapper" style="height: 330px;">
         <canvas id="cumulativeCostChart"></canvas>
       </div>
     </div>
@@ -113,10 +274,16 @@
       <!-- Payment Composition Chart -->
       <div class="chart-card">
         <div class="chart-header">
-          <h3 class="chart-title" style="font-size: 0.95rem;">Monthly payment composition</h3>
+          <div>
+            <h3 class="chart-title" style="font-size: 0.95rem;">Monthly payment composition</h3>
+          </div>
           <div class="chart-toolbar">
             <button type="button" class="btn-zoom-reset" id="resetCompZoomBtn" onclick="if(window.compChart) compChart.resetZoom()">
-              Reset
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Reset View
             </button>
           </div>
         </div>
@@ -128,10 +295,16 @@
       <!-- Remaining Loan Balance Chart -->
       <div class="chart-card">
         <div class="chart-header">
-          <h3 class="chart-title" style="font-size: 0.95rem;">Remaining loan balance</h3>
+          <div>
+            <h3 class="chart-title" style="font-size: 0.95rem;">Remaining loan balance</h3>
+          </div>
           <div class="chart-toolbar">
             <button type="button" class="btn-zoom-reset" id="resetBalZoomBtn" onclick="if(window.balChart) balChart.resetZoom()">
-              Reset
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Reset View
             </button>
           </div>
         </div>
@@ -147,24 +320,25 @@
     <div class="info-card">
       <div class="info-section-title">What's included?</div>
       <ul class="info-list">
-        <li>Points</li>
-        <li>Lender credits</li>
-        <li>Lender fees</li>
-        <li>Interest</li>
-        <li>Mortgage insurance</li>
+        <li>Discount points paid</li>
+        <li>Lender credits received (subtracted)</li>
+        <li>Origination & lender fees</li>
+        <li>Amortized loan interest</li>
+        <li>Monthly & upfront mortgage insurance (MI)</li>
       </ul>
 
-      <div class="info-section-title" style="margin-top: 16px;">Not included</div>
+      <div class="info-section-title" style="margin-top: 16px;">Not included (Property Context)</div>
       <ul class="info-list">
-        <li>Taxes</li>
+        <li>Property taxes (escrow)</li>
         <li>Homeowners insurance</li>
-        <li>Home appreciation</li>
-        <li>Tax effects</li>
+        <li>HOA dues</li>
+        <li>Home price appreciation</li>
+        <li>Tax deductions / mortgage interest tax effects</li>
       </ul>
 
-      <div style="margin-top: 14px; margin-bottom: 20px;">
+      <div style="margin-top: 16px; margin-bottom: 20px;">
         <a href="{% url 'web:learn' %}" style="color: #0284c7; text-decoration: none; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
-          View calculation details
+          Learn how financing costs are derived
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
             <polyline points="15 3 21 3 21 9"></polyline>
@@ -173,25 +347,23 @@
         </a>
       </div>
 
-      <div class="info-section-title" style="margin-top: 20px;">Evidence</div>
-      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
-        <div class="pill-badge pill-badge-blue" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-          Verified Loan Estimate
+      <div class="info-section-title" style="margin-top: 20px;">Evidence & Reliability</div>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+        <div class="pill-badge pill-badge-blue" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 0.8rem;">
+          <span style="font-weight: 900; font-size: 1rem;">──</span>
+          <div>
+            <strong>Verified Loan Estimate</strong>
+            <div style="font-size: 0.725rem; opacity: 0.9;">Legally binding TRID disclosure. Solid line.</div>
+          </div>
         </div>
-        <div class="pill-badge pill-badge-amber" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          Advertised observation
+        <div class="pill-badge pill-badge-amber" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 0.8rem;">
+          <span style="font-weight: 900; font-size: 1rem;">- -</span>
+          <div>
+            <strong>Advertised Market Quote</strong>
+            <div style="font-size: 0.725rem; opacity: 0.9;">Indicative rate observation. Dashed line.</div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="disclaimer-text" style="font-size: 0.775rem;">
-      Projected costs are estimates based on stated assumptions; not an offer of credit.
     </div>
   </div>
 </div>
@@ -202,7 +374,7 @@
   const chartData = {{ chart_data_json|safe }};
 
   function updateHorizonDisplay(val) {
-    document.getElementById('horizonValuePill').textContent = val + ' years';
+    document.getElementById('horizonValuePill').textContent = val + ' years (' + (val * 12) + ' mo)';
   }
 
   function reloadWithHorizon(val) {
@@ -221,13 +393,22 @@
     window.location.href = url.toString();
   }
 
-  // Palette definitions
-  const colors = [
-    { line: '#0284c7', bg: 'rgba(2, 132, 199, 0.08)' }, // Blue (Option A)
-    { line: '#0d9488', bg: 'rgba(13, 148, 136, 0.12)' }, // Teal (Option B)
-    { line: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },  // Amber (Option C)
-    { line: '#64748b', bg: 'rgba(100, 116, 139, 0.08)' },
+  // Okabe-Ito Colorblind-safe & distinct high-contrast palette
+  const okabeItoPalette = [
+    { line: '#0072B2', bg: 'rgba(0, 114, 178, 0.08)' }, // Deep Blue
+    { line: '#009E73', bg: 'rgba(0, 158, 115, 0.12)' }, // Bluish Green (Recommended)
+    { line: '#D55E00', bg: 'rgba(213, 94, 0, 0.08)' },  // Vermillion
+    { line: '#CC79A7', bg: 'rgba(204, 121, 167, 0.08)' },// Reddish Purple
+    { line: '#E69F00', bg: 'rgba(230, 159, 0, 0.08)' },  // Amber/Orange
+    { line: '#56B4E9', bg: 'rgba(86, 180, 233, 0.08)' }, // Sky Blue
+    { line: '#334155', bg: 'rgba(51, 65, 85, 0.08)' }    // Slate
   ];
+
+  // Apply colors to table indicators
+  document.querySelectorAll('.option-color-indicator').forEach((el, idx) => {
+    const color = okabeItoPalette[idx % okabeItoPalette.length];
+    el.style.backgroundColor = color.line;
+  });
 
   const zoomPluginConfig = {
     pan: {
@@ -249,17 +430,22 @@
 
   // 1. Cumulative Cost Chart
   const ctxCost = document.getElementById('cumulativeCostChart').getContext('2d');
-  const costDatasets = chartData.series.map((s, idx) => ({
-    label: s.label,
-    data: s.financing_cost,
-    borderColor: colors[idx % colors.length].line,
-    backgroundColor: colors[idx % colors.length].bg,
-    fill: idx === 1,
-    borderWidth: 2.5,
-    pointRadius: 0,
-    pointHoverRadius: 4,
-    tension: 0.15
-  }));
+  const costDatasets = chartData.series.map((s, idx) => {
+    const color = okabeItoPalette[idx % okabeItoPalette.length];
+    const isDashed = !s.is_verified;
+    return {
+      label: s.label,
+      data: s.financing_cost,
+      borderColor: color.line,
+      backgroundColor: color.bg,
+      fill: idx === 1,
+      borderWidth: s.is_verified ? 3 : 2.5,
+      borderDash: isDashed ? [6, 4] : [],
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      tension: 0.15
+    };
+  });
 
   window.costChart = new Chart(ctxCost, {
     type: 'line',
@@ -278,7 +464,12 @@
         legend: {
           position: 'top',
           align: 'end',
-          labels: { boxWidth: 12, usePointStyle: true, font: { family: 'Plus Jakarta Sans', size: 12 } }
+          labels: {
+            boxWidth: 28,
+            boxHeight: 2,
+            usePointStyle: false,
+            font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }
+          }
         },
         tooltip: {
           callbacks: {
@@ -287,7 +478,9 @@
               return `Month ${m} (${(m/12).toFixed(1)} yrs)`;
             },
             label: function(ctx) {
-              return `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+              const s = chartData.series[ctx.datasetIndex];
+              const tag = s && s.is_verified ? ' [Verified LE]' : ' [Advertised]';
+              return `${ctx.dataset.label}${tag}: $${ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
             }
           }
         },
@@ -295,7 +488,7 @@
       },
       scales: {
         x: {
-          title: { display: true, text: 'Month', font: { size: 11, weight: '600' } },
+          title: { display: true, text: 'Amortization Month', font: { size: 11, weight: '600' } },
           grid: { display: false }
         },
         y: {
@@ -377,14 +570,19 @@
 
   // 3. Remaining Loan Balance Paydown Chart
   const ctxBal = document.getElementById('loanBalanceChart').getContext('2d');
-  const balDatasets = chartData.series.map((s, idx) => ({
-    label: s.label,
-    data: s.balance,
-    borderColor: colors[idx % colors.length].line,
-    borderWidth: 2,
-    pointRadius: 0,
-    tension: 0.1
-  }));
+  const balDatasets = chartData.series.map((s, idx) => {
+    const color = okabeItoPalette[idx % okabeItoPalette.length];
+    const isDashed = !s.is_verified;
+    return {
+      label: s.label,
+      data: s.balance,
+      borderColor: color.line,
+      borderDash: isDashed ? [6, 4] : [],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.1
+    };
+  });
 
   window.balChart = new Chart(ctxBal, {
     type: 'line',

@@ -119,6 +119,80 @@
     </div>
   </div>
 
+  <script>
+    function formatCurrencyValue(val) {
+      if (!val && val !== 0) return '';
+      const str = String(val);
+      const clean = str.replace(/[^0-9.]/g, '');
+      if (!clean) return '';
+
+      const parts = clean.split('.');
+      let integerPart = parts[0];
+      let decimalPart = parts.length > 1 ? parts.slice(1).join('') : null;
+
+      if (integerPart) {
+        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      } else {
+        integerPart = '0';
+      }
+
+      let result = '$' + integerPart;
+      if (decimalPart !== null) {
+        result += '.' + decimalPart.slice(0, 2);
+      }
+      return result;
+    }
+
+    function initCurrencyInputs() {
+      document.querySelectorAll('.currency-input, input[data-type="currency"]').forEach(input => {
+        if (input.dataset.currencyBound) return;
+        input.dataset.currencyBound = 'true';
+
+        if (input.value && !input.value.startsWith('$')) {
+          input.value = formatCurrencyValue(input.value);
+        }
+
+        input.addEventListener('input', function(e) {
+          const raw = input.value;
+          if (!raw.trim()) return;
+
+          const selStart = input.selectionStart || 0;
+          const textBeforeCursor = raw.slice(0, selStart);
+          const digitsBeforeCursor = (textBeforeCursor.match(/[0-9.]/g) || []).length;
+
+          const formatted = formatCurrencyValue(raw);
+          input.value = formatted;
+
+          let count = 0;
+          let targetPos = formatted.length;
+          for (let i = 0; i < formatted.length; i++) {
+            if (/[0-9.]/.test(formatted[i])) {
+              count++;
+            }
+            if (count === digitsBeforeCursor) {
+              targetPos = i + 1;
+              break;
+            }
+          }
+          if (digitsBeforeCursor === 0) {
+            targetPos = formatted.startsWith('$') ? 1 : 0;
+          }
+          input.setSelectionRange(targetPos, targetPos);
+        });
+
+        input.addEventListener('blur', function() {
+          if (input.value && !input.value.startsWith('$')) {
+            input.value = formatCurrencyValue(input.value);
+          }
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', initCurrencyInputs);
+    document.addEventListener('htmx:afterSwap', initCurrencyInputs);
+    document.addEventListener('htmx:load', initCurrencyInputs);
+  </script>
+
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>
