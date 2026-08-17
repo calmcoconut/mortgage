@@ -520,20 +520,28 @@ body {
   display: flex;
   gap: 6px;
   overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .monthly-opt-tab-btn {
-  background: #f1f5f9;
+  background: #f8fafc;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 5px 10px;
-  font-size: 0.775rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #475569;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: var(--transition-fast);
 }
 

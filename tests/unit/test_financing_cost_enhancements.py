@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 from core.financing_cost import calculate_option_result
-from core.models import LoanOptionInput, ScenarioInput
+from core.models import LoanOptionInput, ScenarioInput, SourceType
 from web.forms import ScenarioForm
 from web.services import export_scenario_to_dict, import_or_update_scenario_from_dict
 
@@ -150,3 +150,63 @@ def test_json_import_export_with_appreciation_and_tax():
     assert exported["scenario"]["marginal_tax_rate_pct"] == 33.3
     assert exported["scenario"]["itemize_deductions"] is True
     assert exported["scenario"]["filing_status"] == "married_joint"
+
+
+def test_calculate_break_even_immediate_day_1():
+    from core.financing_cost import calculate_break_even
+
+    # Candidate has $0 points and lower rate vs Baseline with $2000 points and higher rate
+    candidate = LoanOptionInput(
+        option_id=uuid.uuid4(),
+        label="Candidate Lower Upfront & Lower Rate",
+        source_type=SourceType.MANUAL,
+        entered_on=date(2026, 8, 1),
+        loan_amount=Decimal("500000.00"),
+        note_rate=Decimal("0.0600"),
+        apr=Decimal("0.0600"),
+        term_months=360,
+        points_pct=Decimal("0.0000"),
+        lender_credit=Decimal("0.00"),
+        lender_fees=Decimal("500.00"),
+    )
+    baseline = LoanOptionInput(
+        option_id=uuid.uuid4(),
+        label="Baseline Higher Upfront & Higher Rate",
+        source_type=SourceType.MANUAL,
+        entered_on=date(2026, 8, 1),
+        loan_amount=Decimal("500000.00"),
+        note_rate=Decimal("0.0650"),
+        apr=Decimal("0.0660"),
+        term_months=360,
+        points_pct=Decimal("0.0100"),
+        lender_credit=Decimal("0.00"),
+        lender_fees=Decimal("1500.00"),
+    )
+
+    res = calculate_break_even(candidate=candidate, baseline=baseline, horizon_months=84)
+    assert res.break_even_month == 0
+    assert "No upfront cost to recoup" in res.break_even_explanation
+    assert res.upfront_delta < 0
+    assert res.savings_at_horizon > 0
+
+
+def test_mortgage_tags_filters():
+    from web.templatetags.mortgage_tags import money_abs, money_fmt, money_signed
+
+    # money_fmt
+    assert money_fmt(1250) == "$1,250"
+    assert money_fmt(-1250) == "-$1,250"
+    assert money_fmt(0) == "$0"
+    assert money_fmt(Decimal("-26000")) == "-$26,000"
+
+    # money_signed
+    assert money_signed(1250) == "+$1,250"
+    assert money_signed(-1250) == "-$1,250"
+    assert money_signed(0) == "$0"
+    assert money_signed(Decimal("519")) == "+$519"
+
+    # money_abs
+    assert money_abs(-1250) == "$1,250"
+    assert money_abs(1250) == "$1,250"
+    assert money_abs(0) == "$0"
+

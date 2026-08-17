@@ -158,6 +158,10 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
             opt_label_1 = self.driver.find_element(By.ID, "widgetOptionLabel").text
             self.assertIn("OPTION", opt_label_1.upper())
 
+        # 9. Assert no corrupted negative currency strings (e.g. '$-')
+        page_source = self.driver.page_source
+        self.assertNotIn("$-", page_source)
+
 
 
 

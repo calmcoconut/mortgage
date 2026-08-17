@@ -213,13 +213,28 @@ def calculate_break_even(
     max_months = min(candidate.term_months, baseline.term_months)
     break_even_month: int | None = None
 
-    for m in range(1, max_months + 1):
-        if (
-            res_candidate.financing_cost_by_month[m]
-            < res_baseline.financing_cost_by_month[m]
-        ):
-            break_even_month = m
-            break
+    if upfront_delta <= 0:
+        if monthly_pi_delta <= 0:
+            # Candidate has lower or equal upfront cost AND lower/equal monthly payment -> Cheaper from Day 1!
+            break_even_month = 0
+        else:
+            # Candidate is cheaper upfront, but baseline has lower monthly payment.
+            # Baseline eventually catches up to candidate at month m.
+            for m in range(1, max_months + 1):
+                if (
+                    res_baseline.financing_cost_by_month[m]
+                    < res_candidate.financing_cost_by_month[m]
+                ):
+                    break_even_month = m
+                    break
+    else:
+        for m in range(1, max_months + 1):
+            if (
+                res_candidate.financing_cost_by_month[m]
+                < res_baseline.financing_cost_by_month[m]
+            ):
+                break_even_month = m
+                break
 
     discounted_break_even_month: int | None = None
     discounted_savings: Decimal | None = None
@@ -261,16 +276,41 @@ def calculate_break_even(
     # Human-friendly derivation explanation
     horizon_years = horizon_months // 12
     explanation = ""
-    if break_even_month is not None:
-        if break_even_month <= horizon_months:
+    if break_even_month == 0:
+        if upfront_delta < 0 and monthly_pi_delta < 0:
+            explanation = (
+                f"No upfront cost to recoup — candidate starts with lower upfront fees (-${abs(upfront_delta):,.0f}) "
+                f"and saves ${abs(monthly_pi_delta):,.0f}/mo immediately (${savings_at_horizon:,.0f} net savings over {horizon_years} yrs)."
+            )
+        elif upfront_delta < 0:
+            explanation = (
+                f"No upfront cost to recoup — candidate provides ${abs(upfront_delta):,.0f} in upfront savings "
+                f"(${savings_at_horizon:,.0f} net savings over {horizon_years} yrs)."
+            )
+        else:
+            explanation = (
+                f"Candidate option is cheaper from Day 1 (${savings_at_horizon:,.0f} net savings over {horizon_years} yrs)."
+            )
+    elif break_even_month is not None:
+        years_fmt = (
+            f"{break_even_month / 12:.1f}"
+            if break_even_month % 12 != 0
+            else f"{break_even_month // 12}"
+        )
+        if upfront_delta <= 0:
+            explanation = (
+                f"Candidate is cheaper upfront by ${abs(upfront_delta):,.0f}, but baseline's lower monthly payment "
+                f"catches up by Month {break_even_month} ({years_fmt} yrs)."
+            )
+        elif break_even_month <= horizon_months:
             explanation = (
                 f"Upfront points/fees recoup by Month {break_even_month} "
-                f"({(break_even_month / 12):.1f} yrs), saving ${savings_at_horizon:,.0f} net over your {horizon_years}-year hold."
+                f"({years_fmt} yrs), saving ${savings_at_horizon:,.0f} net over your {horizon_years}-year hold."
             )
         else:
             explanation = (
                 f"Break-even occurs in Month {break_even_month} "
-                f"({(break_even_month / 12):.1f} yrs), which is after your planned {horizon_years}-year hold."
+                f"({years_fmt} yrs), which is after your planned {horizon_years}-year hold."
             )
     else:
         if upfront_delta > 0 and monthly_pi_delta >= 0:
@@ -284,8 +324,8 @@ def calculate_break_even(
             )
         elif savings_at_horizon > 0:
             explanation = (
-                f"{candidate.label} is cheaper immediately from Month 1 "
-                f"(lower upfront costs and lower/equal monthly payments)."
+                f"{candidate.label} is cheaper immediately from Day 1 "
+                f"(lower upfront costs and lower monthly payments)."
             )
         else:
             explanation = f"Baseline remains cheaper over your {horizon_years}-year holding horizon."

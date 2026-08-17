@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load mortgage_tags %}
 
 {% block title %}Projected Financing Costs — {{ scenario.name }}{% endblock %}
 
@@ -77,16 +78,16 @@
     </div>
     <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: {% if savings_at_horizon and savings_at_horizon > 0 %}#047857{% elif savings_at_horizon and savings_at_horizon < 0 %}#b91c1c{% else %}#0f172a{% endif %}; margin: 6px 0 2px 0;">
       {% if savings_at_horizon is not None %}
-        {% if savings_at_horizon > 0 %}+{% endif %}${{ savings_at_horizon|floatformat:0|intcomma }}
+        {{ savings_at_horizon|money_signed }}
       {% elif comparison.option_results %}
-        ${{ comparison.option_results.0.financing_cost_at_horizon|floatformat:0|intcomma }}
+        {{ comparison.option_results.0.financing_cost_at_horizon|money_fmt }}
       {% else %}
         $0
       {% endif %}
     </div>
     <div style="font-size: 0.775rem; color: var(--text-muted);">
       {% if comparison.option_results|length > 1 %}
-        Baseline: ${{ comparison.option_results.0.financing_cost_at_horizon|floatformat:0|intcomma }} · Candidate: ${{ comparison.option_results.1.financing_cost_at_horizon|floatformat:0|intcomma }}
+        Baseline: {{ comparison.option_results.0.financing_cost_at_horizon|money_fmt }} · Candidate: {{ comparison.option_results.1.financing_cost_at_horizon|money_fmt }}
       {% else %}
         Cumulative financing cost over {{ horizon_years }} years
       {% endif %}
@@ -99,13 +100,15 @@
       <span title="The month in which lower monthly interest payments offset any higher upfront discount points or lender fees." style="cursor: help; color: #64748b; font-size: 1rem;">ℹ️</span>
     </div>
     <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 6px 0 2px 0;">
-      {% if break_even_month %}
-        Month {{ break_even_month }} <span style="font-size: 0.95rem; font-weight: 600; color: #0d9488;">({% widthratio break_even_month 12 1 %} yrs)</span>
+      {% if break_even_month == 0 %}
+        Immediate <span style="font-size: 0.95rem; font-weight: 600; color: #0d9488;">(Day 1)</span>
+      {% elif break_even_month %}
+        Month {{ break_even_month }} <span style="font-size: 0.95rem; font-weight: 600; color: #0d9488;">({% if break_even_month < 12 %}&lt; 1 yr{% else %}{% widthratio break_even_month 12 1 %} yrs{% endif %})</span>
       {% else %}
         No break-even
       {% endif %}
     </div>
-    <div style="font-size: 0.775rem; color: {% if break_even_month and break_even_month <= horizon_months %}#047857{% else %}#475569{% endif %}; line-height: 1.35;">
+    <div style="font-size: 0.775rem; color: {% if break_even_month is not None and break_even_month <= horizon_months %}#047857{% else %}#475569{% endif %}; line-height: 1.35;">
       {% if break_even_explanation %}
         {{ break_even_explanation }}
       {% else %}
@@ -121,14 +124,14 @@
     </div>
     <div class="kpi-value" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 6px 0 2px 0;">
       {% if pi_diff is not None %}
-        ${{ pi_diff|floatformat:0|intcomma }} <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">/ mo</span>
+        {{ pi_diff|money_fmt }} <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">/ mo</span>
       {% else %}
         $0 / mo
       {% endif %}
     </div>
     <div style="font-size: 0.775rem; color: var(--text-muted);">
       {% if comparison.option_results|length > 1 %}
-        {{ comparison.option_results.0.label|truncatechars:18 }}: ${{ comparison.option_results.0.monthly_pi|floatformat:0|intcomma }}/mo vs {{ comparison.option_results.1.label|truncatechars:18 }}: ${{ comparison.option_results.1.monthly_pi|floatformat:0|intcomma }}/mo
+        {{ comparison.option_results.0.label|truncatechars:18 }}: {{ comparison.option_results.0.monthly_pi|money_fmt }}/mo vs {{ comparison.option_results.1.label|truncatechars:18 }}: {{ comparison.option_results.1.monthly_pi|money_fmt }}/mo
       {% else %}
         Monthly principal & interest payment
       {% endif %}
@@ -146,25 +149,25 @@
     <div>
       <span style="color: var(--text-muted);">Upfront Net Fees:</span>
       <strong style="color: {% if upfront_diff > 0 %}#b91c1c{% elif upfront_diff < 0 %}#047857{% else %}#334155{% endif %};">
-        {% if upfront_diff > 0 %}+{% endif %}${{ upfront_diff|floatformat:0|intcomma }}
+        {{ upfront_diff|money_signed }}
       </strong>
     </div>
     <div>
       <span style="color: var(--text-muted);">{{ horizon_years }}Y Interest:</span>
       <strong style="color: {% if interest_diff > 0 %}#b91c1c{% elif interest_diff < 0 %}#047857{% else %}#334155{% endif %};">
-        {% if interest_diff > 0 %}+{% endif %}${{ interest_diff|floatformat:0|intcomma }}
+        {{ interest_diff|money_signed }}
       </strong>
     </div>
     <div>
       <span style="color: var(--text-muted);">{{ horizon_years }}Y MI:</span>
       <strong style="color: {% if mi_diff > 0 %}#b91c1c{% elif mi_diff < 0 %}#047857{% else %}#334155{% endif %};">
-        {% if mi_diff > 0 %}+{% endif %}${{ mi_diff|floatformat:0|intcomma }}
+        {{ mi_diff|money_signed }}
       </strong>
     </div>
     <div style="border-left: 1px solid #cbd5e1; padding-left: 12px;">
       <span style="color: var(--text-muted);">Net {{ horizon_years }}Y Gap:</span>
       <strong style="color: {% if savings_at_horizon and savings_at_horizon > 0 %}#047857{% elif savings_at_horizon and savings_at_horizon < 0 %}#b91c1c{% else %}#0f172a{% endif %};">
-        {% if savings_at_horizon and savings_at_horizon > 0 %}+{% endif %}${{ savings_at_horizon|floatformat:0|intcomma }} savings
+        {{ savings_at_horizon|money_signed }} savings
       </strong>
     </div>
   </div>
@@ -360,16 +363,16 @@
 
       <!-- Option Switcher Tabs (if multiple options) -->
       {% if monthly_cost_options|length > 1 %}
-      <div class="monthly-opt-switcher-tabs" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color);">
+      <div class="monthly-opt-switcher-tabs">
         {% for mco in monthly_cost_options %}
         <button type="button" 
                 class="monthly-opt-tab-btn {% if mco.option_id == primary_monthly_cost.option_id %}active{% endif %}"
                 data-option-id="{{ mco.option_id }}"
                 onclick="selectMonthlyCostOption('{{ mco.option_id }}', this)">
-          <span class="tab-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #0d9488;"></span>
-          <span style="font-weight: 600;">{{ mco.label|truncatechars:15 }}</span>
+          <span class="tab-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #0d9488; flex-shrink: 0;"></span>
+          <span style="font-weight: 600;">{{ mco.label|truncatechars:18 }}</span>
           {% if mco.is_recommended %}
-            <span style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 1px 4px; border-radius: 3px; font-weight: 700;">★ Rec</span>
+            <span style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 3px; font-weight: 700; flex-shrink: 0;">★ Rec</span>
           {% endif %}
         </button>
         {% endfor %}
@@ -384,7 +387,7 @@
         </div>
         <div style="display: flex; align-items: baseline; gap: 6px; margin: 4px 0 2px 0;">
           <span id="widgetHeroTotal" style="font-size: 2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">
-            ${{ primary_monthly_cost.total_monthly|floatformat:0|intcomma }}
+            {{ primary_monthly_cost.total_monthly|money_fmt }}
           </span>
           <span style="font-size: 0.9rem; font-weight: 600; color: #64748b;">/ month</span>
         </div>
@@ -392,9 +395,9 @@
         <!-- Monthly Delta vs Baseline -->
         <div id="widgetMonthlyDelta" style="font-size: 0.775rem; color: {% if primary_monthly_cost.monthly_diff_vs_baseline < 0 %}#047857{% elif primary_monthly_cost.monthly_diff_vs_baseline > 0 %}#b91c1c{% else %}#64748b{% endif %}; font-weight: 600;">
           {% if primary_monthly_cost.monthly_diff_vs_baseline < 0 %}
-            ↓ ${{ primary_monthly_cost.monthly_diff_vs_baseline|floatformat:0|slice:"1:"|intcomma }}/mo lower than baseline
+            ↓ {{ primary_monthly_cost.monthly_diff_vs_baseline|money_abs }}/mo lower than baseline
           {% elif primary_monthly_cost.monthly_diff_vs_baseline > 0 %}
-            ↑ +${{ primary_monthly_cost.monthly_diff_vs_baseline|floatformat:0|intcomma }}/mo vs baseline
+            ↑ +{{ primary_monthly_cost.monthly_diff_vs_baseline|money_abs }}/mo vs baseline
           {% else %}
             Baseline option payment
           {% endif %}
@@ -421,14 +424,14 @@
         <!-- Principal & Interest -->
         <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0d9488; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0d9488; display: inline-block; flex-shrink: 0;"></span>
             <div>
               <div style="font-weight: 700; color: #1e293b;">Principal & Interest</div>
               <div style="font-size: 0.7rem; color: #64748b;">Amortized loan principal & interest</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div id="itemPI" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_pi|floatformat:0|intcomma }}</div>
+            <div id="itemPI" style="font-weight: 700; color: #0f172a;">{{ primary_monthly_cost.monthly_pi|money_fmt }}</div>
             <div id="itemPIPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.pi_pct }}%</div>
           </div>
         </div>
@@ -436,14 +439,14 @@
         <!-- Property Taxes -->
         <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0284c7; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0284c7; display: inline-block; flex-shrink: 0;"></span>
             <div>
               <div style="font-weight: 700; color: #1e293b;">Property Taxes (Escrow)</div>
               <div style="font-size: 0.7rem; color: #64748b;">Estimated monthly county property tax</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div id="itemTax" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_tax|floatformat:0|intcomma }}</div>
+            <div id="itemTax" style="font-weight: 700; color: #0f172a;">{{ primary_monthly_cost.monthly_tax|money_fmt }}</div>
             <div id="itemTaxPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.tax_pct }}%</div>
           </div>
         </div>
@@ -451,14 +454,14 @@
         <!-- Homeowners Insurance -->
         <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f59e0b; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f59e0b; display: inline-block; flex-shrink: 0;"></span>
             <div>
               <div style="font-weight: 700; color: #1e293b;">Homeowners Insurance</div>
               <div style="font-size: 0.7rem; color: #64748b;">Hazard / casualty insurance escrow</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div id="itemIns" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_ins|floatformat:0|intcomma }}</div>
+            <div id="itemIns" style="font-weight: 700; color: #0f172a;">{{ primary_monthly_cost.monthly_ins|money_fmt }}</div>
             <div id="itemInsPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.ins_pct }}%</div>
           </div>
         </div>
@@ -466,14 +469,14 @@
         <!-- Mortgage Insurance (PMI/MIP) -->
         <div class="breakdown-item" id="rowMI" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc; {% if primary_monthly_cost.monthly_mi == 0 %}opacity: 0.6;{% endif %}">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="width: 10px; height: 10px; border-radius: 2px; background: #8b5cf6; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #8b5cf6; display: inline-block; flex-shrink: 0;"></span>
             <div>
               <div style="font-weight: 700; color: #1e293b;">Mortgage Insurance (PMI)</div>
               <div style="font-size: 0.7rem; color: #64748b;" id="descMI">{% if primary_monthly_cost.monthly_mi > 0 %}Required until ~78-80% LTV{% else %}None ($0) — Down payment &ge; 20%{% endif %}</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div id="itemMI" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_mi|floatformat:0|intcomma }}</div>
+            <div id="itemMI" style="font-weight: 700; color: #0f172a;">{{ primary_monthly_cost.monthly_mi|money_fmt }}</div>
             <div id="itemMIPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.mi_pct }}%</div>
           </div>
         </div>
@@ -481,14 +484,14 @@
         <!-- HOA Dues -->
         <div class="breakdown-item" id="rowHOA" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc; {% if primary_monthly_cost.monthly_hoa == 0 %}opacity: 0.6;{% endif %}">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f43f5e; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f43f5e; display: inline-block; flex-shrink: 0;"></span>
             <div>
               <div style="font-weight: 700; color: #1e293b;">HOA Dues</div>
               <div style="font-size: 0.7rem; color: #64748b;">Monthly condo / townhome assessment</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div id="itemHOA" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_hoa|floatformat:0|intcomma }}</div>
+            <div id="itemHOA" style="font-weight: 700; color: #0f172a;">{{ primary_monthly_cost.monthly_hoa|money_fmt }}</div>
             <div id="itemHOAPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.hoa_pct }}%</div>
           </div>
         </div>
@@ -496,17 +499,26 @@
 
       <!-- Front-End DTI & Affordability Context (if gross income set) -->
       {% if scenario.gross_monthly_income and scenario.gross_monthly_income > 0 %}
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px;">
+      <div id="widgetDtiBox" style="background: {% if primary_monthly_cost.front_end_dti <= 28.0 %}#f0fdf4{% elif primary_monthly_cost.front_end_dti <= 36.0 %}#fffbeb{% else %}#fef2f2{% endif %}; border: 1px solid {% if primary_monthly_cost.front_end_dti <= 28.0 %}#bbf7d0{% elif primary_monthly_cost.front_end_dti <= 36.0 %}#fde68a{% else %}#fecaca{% endif %}; border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-size: 0.75rem; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 4px;">
+          <div id="widgetDtiTitle" style="font-size: 0.75rem; font-weight: 700; color: {% if primary_monthly_cost.front_end_dti <= 28.0 %}#166534{% elif primary_monthly_cost.front_end_dti <= 36.0 %}#92400e{% else %}#991b1b{% endif %}; display: flex; align-items: center; gap: 4px;">
             <span>🏡 Front-End Housing Ratio:</span>
           </div>
-          <span id="widgetFrontDtiBadge" class="badge" style="background: #166534; color: #ffffff; font-size: 0.75rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
+          <span id="widgetFrontDtiBadge" class="badge" style="background: {% if primary_monthly_cost.front_end_dti <= 28.0 %}#166534{% elif primary_monthly_cost.front_end_dti <= 36.0 %}#d97706{% else %}#dc2626{% endif %}; color: #ffffff; font-size: 0.75rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
             {{ primary_monthly_cost.front_end_dti }}%
           </span>
         </div>
-        <div style="font-size: 0.7rem; color: #15803d; margin-top: 4px; line-height: 1.3;">
-          Total housing payment as share of ${{ scenario.gross_monthly_income|floatformat:0|intcomma }}/mo gross income.
+        <div id="widgetDtiDesc" style="font-size: 0.7rem; color: {% if primary_monthly_cost.front_end_dti <= 28.0 %}#15803d{% elif primary_monthly_cost.front_end_dti <= 36.0 %}#78350f{% else %}#7f1d1d{% endif %}; margin-top: 4px; line-height: 1.3;">
+          <div id="widgetDtiStatusText" style="font-weight: 700; margin-bottom: 2px;">
+            {% if primary_monthly_cost.front_end_dti <= 28.0 %}
+              ✓ Within standard 28% front-end guideline
+            {% elif primary_monthly_cost.front_end_dti <= 36.0 %}
+              ⚠️ Moderate front-end ratio (28%–36%)
+            {% else %}
+              ⚠️ Elevated front-end ratio (&gt; 36%; may require compensating factors)
+            {% endif %}
+          </div>
+          Total housing payment as share of {{ scenario.gross_monthly_income|money_fmt }}/mo gross income.
           {% if scenario.recurring_monthly_debts %}
             <div style="margin-top: 2px; font-weight: 600;">Total Back-End DTI: <span id="widgetBackDtiText">{{ primary_monthly_cost.back_end_dti }}%</span></div>
           {% endif %}
@@ -707,17 +719,32 @@
 
     // Update DTI Front-End
     if (opt.front_end_dti !== null) {
+      const dtiBox = document.getElementById('widgetDtiBox');
+      const dtiTitle = document.getElementById('widgetDtiTitle');
+      const dtiDesc = document.getElementById('widgetDtiDesc');
+      const dtiStatus = document.getElementById('widgetDtiStatusText');
       const frontBadge = document.getElementById('widgetFrontDtiBadge');
-      if (frontBadge) {
-        frontBadge.textContent = opt.front_end_dti + '%';
-        if (opt.front_end_dti <= 28.0) {
-          frontBadge.style.background = '#166534';
-        } else if (opt.front_end_dti <= 36.0) {
-          frontBadge.style.background = '#d97706';
-        } else {
-          frontBadge.style.background = '#dc2626';
-        }
+
+      if (opt.front_end_dti <= 28.0) {
+        if (dtiBox) { dtiBox.style.background = '#f0fdf4'; dtiBox.style.borderColor = '#bbf7d0'; }
+        if (dtiTitle) dtiTitle.style.color = '#166534';
+        if (dtiDesc) dtiDesc.style.color = '#15803d';
+        if (dtiStatus) dtiStatus.textContent = '✓ Within standard 28% front-end guideline';
+        if (frontBadge) { frontBadge.style.background = '#166534'; frontBadge.textContent = opt.front_end_dti + '%'; }
+      } else if (opt.front_end_dti <= 36.0) {
+        if (dtiBox) { dtiBox.style.background = '#fffbeb'; dtiBox.style.borderColor = '#fde68a'; }
+        if (dtiTitle) dtiTitle.style.color = '#92400e';
+        if (dtiDesc) dtiDesc.style.color = '#78350f';
+        if (dtiStatus) dtiStatus.textContent = '⚠️ Moderate front-end ratio (28%–36%)';
+        if (frontBadge) { frontBadge.style.background = '#d97706'; frontBadge.textContent = opt.front_end_dti + '%'; }
+      } else {
+        if (dtiBox) { dtiBox.style.background = '#fef2f2'; dtiBox.style.borderColor = '#fecaca'; }
+        if (dtiTitle) dtiTitle.style.color = '#991b1b';
+        if (dtiDesc) dtiDesc.style.color = '#7f1d1d';
+        if (dtiStatus) dtiStatus.textContent = '⚠️ Elevated front-end ratio (> 36%; may require compensating factors)';
+        if (frontBadge) { frontBadge.style.background = '#dc2626'; frontBadge.textContent = opt.front_end_dti + '%'; }
       }
+
       const backText = document.getElementById('widgetBackDtiText');
       if (backText && opt.back_end_dti !== null) {
         backText.textContent = opt.back_end_dti + '%';

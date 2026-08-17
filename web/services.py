@@ -100,6 +100,33 @@ def format_clean_label(raw_label: str) -> str:
     if raw.lower() in known_abbrevs:
         return known_abbrevs[raw.lower()]
 
+    # Clean URL or domain paths like "neohomeloans/branch/..." or "https://neohomeloans.com/..."
+    if (
+        "://" in raw
+        or re.search(
+            r"^(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9_\-]+\.(?:com|org|net|io|co)(?:\/.*)?$",
+            raw,
+            re.IGNORECASE,
+        )
+        or re.search(
+            r"^[a-zA-Z0-9_\-]+\/(?:branch|lenders|rates|quotes)\b",
+            raw,
+            re.IGNORECASE,
+        )
+    ):
+        domain_part = (
+            raw.split("://")[-1]
+            .split("/")[0]
+            .replace(".com", "")
+            .replace(".org", "")
+            .replace(".net", "")
+            .replace("www.", "")
+        )
+        clean_name = re.sub(r"[_\-]+", " ", domain_part).title()
+        if clean_name.lower().replace(" ", "") == "neohomeloans":
+            clean_name = "Neo Home Loans"
+        raw = clean_name
+
     # Check for uppercase parenthesis product tails like (30-YEAR FIXED) or (7/1 ARM CONFORMING)
     match_tail = re.search(
         r"\s*\(((?:30|15|10|7|5|3)(?:-year|-yr|\/1)?\s*(?:fixed|arm)?(?:\s*conforming)?)\)",
