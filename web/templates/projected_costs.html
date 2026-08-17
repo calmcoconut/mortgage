@@ -342,54 +342,218 @@
     </div>
   </div>
 
-  <!-- Right Sidebar Info Card -->
-  <div>
+  <!-- Right Sidebar Column -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- 1. Estimated Monthly Cost Widget Card -->
+    <div class="monthly-cost-widget-card" id="monthlyCostWidget">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 1.1rem;">📊</span>
+          <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.04em;">
+            Estimated Monthly Payment
+          </h3>
+        </div>
+        <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+          PITI + HOA
+        </span>
+      </div>
+
+      <!-- Option Switcher Tabs (if multiple options) -->
+      {% if monthly_cost_options|length > 1 %}
+      <div class="monthly-opt-switcher-tabs" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color);">
+        {% for mco in monthly_cost_options %}
+        <button type="button" 
+                class="monthly-opt-tab-btn {% if mco.option_id == primary_monthly_cost.option_id %}active{% endif %}"
+                data-option-id="{{ mco.option_id }}"
+                onclick="selectMonthlyCostOption('{{ mco.option_id }}', this)">
+          <span class="tab-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #0d9488;"></span>
+          <span style="font-weight: 600;">{{ mco.label|truncatechars:15 }}</span>
+          {% if mco.is_recommended %}
+            <span style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 1px 4px; border-radius: 3px; font-weight: 700;">★ Rec</span>
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Big Hero Total Payment -->
+      <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; position: relative;">
+        <div style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
+          <span id="widgetOptionLabel">{{ primary_monthly_cost.label|default:scenario.name }}</span>
+          <span id="widgetOptionRate" style="color: #0284c7; font-weight: 700;">{{ primary_monthly_cost.rate_pct_display }}</span>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 6px; margin: 4px 0 2px 0;">
+          <span id="widgetHeroTotal" style="font-size: 2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">
+            ${{ primary_monthly_cost.total_monthly|floatformat:0|intcomma }}
+          </span>
+          <span style="font-size: 0.9rem; font-weight: 600; color: #64748b;">/ month</span>
+        </div>
+        
+        <!-- Monthly Delta vs Baseline -->
+        <div id="widgetMonthlyDelta" style="font-size: 0.775rem; color: {% if primary_monthly_cost.monthly_diff_vs_baseline < 0 %}#047857{% elif primary_monthly_cost.monthly_diff_vs_baseline > 0 %}#b91c1c{% else %}#64748b{% endif %}; font-weight: 600;">
+          {% if primary_monthly_cost.monthly_diff_vs_baseline < 0 %}
+            ↓ ${{ primary_monthly_cost.monthly_diff_vs_baseline|floatformat:0|slice:"1:"|intcomma }}/mo lower than baseline
+          {% elif primary_monthly_cost.monthly_diff_vs_baseline > 0 %}
+            ↑ +${{ primary_monthly_cost.monthly_diff_vs_baseline|floatformat:0|intcomma }}/mo vs baseline
+          {% else %}
+            Baseline option payment
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Segmented Breakdown Progress Bar -->
+      <div style="margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.725rem; color: #64748b; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">
+          <span>Payment Composition</span>
+          <span id="widgetPIShareText">{{ primary_monthly_cost.pi_pct }}% P&I</span>
+        </div>
+        <div class="segmented-bar" style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e2e8f0; gap: 2px;">
+          <div id="barPI" style="background: #0d9488; width: {{ primary_monthly_cost.pi_pct }}%; transition: width 0.3s ease;" title="Principal & Interest ({{ primary_monthly_cost.pi_pct }}%)"></div>
+          <div id="barTax" style="background: #0284c7; width: {{ primary_monthly_cost.tax_pct }}%; transition: width 0.3s ease;" title="Property Taxes ({{ primary_monthly_cost.tax_pct }}%)"></div>
+          <div id="barIns" style="background: #f59e0b; width: {{ primary_monthly_cost.ins_pct }}%; transition: width 0.3s ease;" title="Homeowners Insurance ({{ primary_monthly_cost.ins_pct }}%)"></div>
+          <div id="barMI" style="background: #8b5cf6; width: {{ primary_monthly_cost.mi_pct }}%; transition: width 0.3s ease;" title="Mortgage Insurance ({{ primary_monthly_cost.mi_pct }}%)"></div>
+          <div id="barHOA" style="background: #f43f5e; width: {{ primary_monthly_cost.hoa_pct }}%; transition: width 0.3s ease;" title="HOA Dues ({{ primary_monthly_cost.hoa_pct }}%)"></div>
+        </div>
+      </div>
+
+      <!-- Itemized Breakdown Lines -->
+      <div class="monthly-breakdown-list" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.825rem; margin-bottom: 16px;">
+        <!-- Principal & Interest -->
+        <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0d9488; display: inline-block;"></span>
+            <div>
+              <div style="font-weight: 700; color: #1e293b;">Principal & Interest</div>
+              <div style="font-size: 0.7rem; color: #64748b;">Amortized loan principal & interest</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div id="itemPI" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_pi|floatformat:0|intcomma }}</div>
+            <div id="itemPIPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.pi_pct }}%</div>
+          </div>
+        </div>
+
+        <!-- Property Taxes -->
+        <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0284c7; display: inline-block;"></span>
+            <div>
+              <div style="font-weight: 700; color: #1e293b;">Property Taxes (Escrow)</div>
+              <div style="font-size: 0.7rem; color: #64748b;">Estimated monthly county property tax</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div id="itemTax" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_tax|floatformat:0|intcomma }}</div>
+            <div id="itemTaxPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.tax_pct }}%</div>
+          </div>
+        </div>
+
+        <!-- Homeowners Insurance -->
+        <div class="breakdown-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f59e0b; display: inline-block;"></span>
+            <div>
+              <div style="font-weight: 700; color: #1e293b;">Homeowners Insurance</div>
+              <div style="font-size: 0.7rem; color: #64748b;">Hazard / casualty insurance escrow</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div id="itemIns" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_ins|floatformat:0|intcomma }}</div>
+            <div id="itemInsPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.ins_pct }}%</div>
+          </div>
+        </div>
+
+        <!-- Mortgage Insurance (PMI/MIP) -->
+        <div class="breakdown-item" id="rowMI" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc; {% if primary_monthly_cost.monthly_mi == 0 %}opacity: 0.6;{% endif %}">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #8b5cf6; display: inline-block;"></span>
+            <div>
+              <div style="font-weight: 700; color: #1e293b;">Mortgage Insurance (PMI)</div>
+              <div style="font-size: 0.7rem; color: #64748b;" id="descMI">{% if primary_monthly_cost.monthly_mi > 0 %}Required until ~78-80% LTV{% else %}None ($0) — Down payment &ge; 20%{% endif %}</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div id="itemMI" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_mi|floatformat:0|intcomma }}</div>
+            <div id="itemMIPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.mi_pct }}%</div>
+          </div>
+        </div>
+
+        <!-- HOA Dues -->
+        <div class="breakdown-item" id="rowHOA" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--radius-sm); background: #f8fafc; {% if primary_monthly_cost.monthly_hoa == 0 %}opacity: 0.6;{% endif %}">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #f43f5e; display: inline-block;"></span>
+            <div>
+              <div style="font-weight: 700; color: #1e293b;">HOA Dues</div>
+              <div style="font-size: 0.7rem; color: #64748b;">Monthly condo / townhome assessment</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div id="itemHOA" style="font-weight: 700; color: #0f172a;">${{ primary_monthly_cost.monthly_hoa|floatformat:0|intcomma }}</div>
+            <div id="itemHOAPct" style="font-size: 0.7rem; color: #64748b;">{{ primary_monthly_cost.hoa_pct }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Front-End DTI & Affordability Context (if gross income set) -->
+      {% if scenario.gross_monthly_income and scenario.gross_monthly_income > 0 %}
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 4px;">
+            <span>🏡 Front-End Housing Ratio:</span>
+          </div>
+          <span id="widgetFrontDtiBadge" class="badge" style="background: #166534; color: #ffffff; font-size: 0.75rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
+            {{ primary_monthly_cost.front_end_dti }}%
+          </span>
+        </div>
+        <div style="font-size: 0.7rem; color: #15803d; margin-top: 4px; line-height: 1.3;">
+          Total housing payment as share of ${{ scenario.gross_monthly_income|floatformat:0|intcomma }}/mo gross income.
+          {% if scenario.recurring_monthly_debts %}
+            <div style="margin-top: 2px; font-weight: 600;">Total Back-End DTI: <span id="widgetBackDtiText">{{ primary_monthly_cost.back_end_dti }}%</span></div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Quick Edit Link -->
+      <div style="text-align: right;">
+        <a href="{% url 'web:scenario_edit' scenario.id %}" style="font-size: 0.75rem; color: #0284c7; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+          Adjust taxes, insurance & HOA in Settings ⚙️
+        </a>
+      </div>
+    </div>
+
+    <!-- 2. Evidence & Scope Info Card -->
     <div class="info-card">
-      <div class="info-section-title">What's included?</div>
-      <ul class="info-list">
-        <li>Discount points paid</li>
-        <li>Lender credits received (subtracted)</li>
+      <div class="info-section-title">What's included in financing costs?</div>
+      <ul class="info-list" style="margin-bottom: 14px;">
+        <li>Discount points paid & lender credits</li>
         <li>Origination & lender fees</li>
         <li>Amortized loan interest</li>
         <li>Monthly & upfront mortgage insurance (MI)</li>
       </ul>
 
-      <div class="info-section-title" style="margin-top: 16px;">Not included (Property Context)</div>
-      <ul class="info-list">
-        <li>Property taxes (escrow)</li>
-        <li>Homeowners insurance</li>
-        <li>HOA dues</li>
-        <li>Home price appreciation</li>
-        <li>Tax deductions / mortgage interest tax effects</li>
-      </ul>
-
-      <div style="margin-top: 16px; margin-bottom: 20px;">
-        <a href="{% url 'web:learn' %}" style="color: #0284c7; text-decoration: none; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
-          Learn how financing costs are derived
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-        </a>
-      </div>
-
-      <div class="info-section-title" style="margin-top: 20px;">Evidence & Reliability</div>
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-        <div class="pill-badge pill-badge-blue" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 0.8rem;">
-          <span style="font-weight: 900; font-size: 1rem;">──</span>
+      <div class="info-section-title" style="margin-top: 14px;">Data Evidence & Reliability</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+        <div class="pill-badge pill-badge-blue" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 0.775rem;">
+          <span style="font-weight: 900; font-size: 0.95rem;">──</span>
           <div>
             <strong>Verified Loan Estimate</strong>
-            <div style="font-size: 0.725rem; opacity: 0.9;">Legally binding TRID disclosure. Solid line.</div>
+            <div style="font-size: 0.7rem; opacity: 0.9;">Legally binding TRID disclosure. Solid curve.</div>
           </div>
         </div>
-        <div class="pill-badge pill-badge-amber" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 0.8rem;">
-          <span style="font-weight: 900; font-size: 1rem;">- -</span>
+        <div class="pill-badge pill-badge-amber" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 0.775rem;">
+          <span style="font-weight: 900; font-size: 0.95rem;">- -</span>
           <div>
             <strong>Advertised Market Quote</strong>
-            <div style="font-size: 0.725rem; opacity: 0.9;">Indicative rate observation. Dashed line.</div>
+            <div style="font-size: 0.7rem; opacity: 0.9;">Indicative rate observation. Dashed curve.</div>
           </div>
         </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <a href="{% url 'web:learn' %}" style="color: #0284c7; text-decoration: none; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+          Learn mortgage mathematics methodology &rarr;
+        </a>
       </div>
     </div>
   </div>
@@ -431,11 +595,135 @@
     { line: '#334155', bg: 'rgba(51, 65, 85, 0.08)' }    // Slate
   ];
 
-  // Apply colors to table indicators
+  const monthlyCostOptions = {{ monthly_cost_options_json|safe }};
+
+  // Apply colors to table & widget indicators
   document.querySelectorAll('.option-color-indicator').forEach((el, idx) => {
     const color = okabeItoPalette[idx % okabeItoPalette.length];
     el.style.backgroundColor = color.line;
   });
+
+  document.querySelectorAll('.monthly-opt-tab-btn .tab-dot').forEach((el, idx) => {
+    const color = okabeItoPalette[idx % okabeItoPalette.length];
+    el.style.backgroundColor = color.line;
+  });
+
+  function selectMonthlyCostOption(optionId, btnElement) {
+    document.querySelectorAll('.monthly-opt-tab-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    if (btnElement) {
+      btnElement.classList.add('active');
+    }
+
+    const opt = monthlyCostOptions.find(o => o.option_id === optionId);
+    if (!opt) return;
+
+    // Update hero labels & values
+    const labelEl = document.getElementById('widgetOptionLabel');
+    if (labelEl) labelEl.textContent = opt.label;
+
+    const rateEl = document.getElementById('widgetOptionRate');
+    if (rateEl) rateEl.textContent = opt.rate_pct_display;
+
+    const totalEl = document.getElementById('widgetHeroTotal');
+    if (totalEl) totalEl.textContent = '$' + Math.round(opt.total_monthly).toLocaleString();
+
+    // Update delta vs baseline
+    const deltaEl = document.getElementById('widgetMonthlyDelta');
+    if (deltaEl) {
+      if (opt.monthly_diff_vs_baseline < 0) {
+        deltaEl.textContent = '↓ $' + Math.abs(Math.round(opt.monthly_diff_vs_baseline)).toLocaleString() + '/mo lower than baseline';
+        deltaEl.style.color = '#047857';
+      } else if (opt.monthly_diff_vs_baseline > 0) {
+        deltaEl.textContent = '↑ +$' + Math.round(opt.monthly_diff_vs_baseline).toLocaleString() + '/mo vs baseline';
+        deltaEl.style.color = '#b91c1c';
+      } else {
+        deltaEl.textContent = 'Baseline option payment';
+        deltaEl.style.color = '#64748b';
+      }
+    }
+
+    // Update segmented bar
+    const shareText = document.getElementById('widgetPIShareText');
+    if (shareText) shareText.textContent = opt.pi_pct + '% P&I';
+
+    const barPI = document.getElementById('barPI');
+    if (barPI) barPI.style.width = opt.pi_pct + '%';
+
+    const barTax = document.getElementById('barTax');
+    if (barTax) barTax.style.width = opt.tax_pct + '%';
+
+    const barIns = document.getElementById('barIns');
+    if (barIns) barIns.style.width = opt.ins_pct + '%';
+
+    const barMI = document.getElementById('barMI');
+    if (barMI) barMI.style.width = opt.mi_pct + '%';
+
+    const barHOA = document.getElementById('barHOA');
+    if (barHOA) barHOA.style.width = opt.hoa_pct + '%';
+
+    // Update itemized list
+    const itemPI = document.getElementById('itemPI');
+    if (itemPI) itemPI.textContent = '$' + Math.round(opt.monthly_pi).toLocaleString();
+    const itemPIPct = document.getElementById('itemPIPct');
+    if (itemPIPct) itemPIPct.textContent = opt.pi_pct + '%';
+
+    const itemTax = document.getElementById('itemTax');
+    if (itemTax) itemTax.textContent = '$' + Math.round(opt.monthly_tax).toLocaleString();
+    const itemTaxPct = document.getElementById('itemTaxPct');
+    if (itemTaxPct) itemTaxPct.textContent = opt.tax_pct + '%';
+
+    const itemIns = document.getElementById('itemIns');
+    if (itemIns) itemIns.textContent = '$' + Math.round(opt.monthly_ins).toLocaleString();
+    const itemInsPct = document.getElementById('itemInsPct');
+    if (itemInsPct) itemInsPct.textContent = opt.ins_pct + '%';
+
+    const itemMI = document.getElementById('itemMI');
+    if (itemMI) itemMI.textContent = '$' + Math.round(opt.monthly_mi).toLocaleString();
+    const itemMIPct = document.getElementById('itemMIPct');
+    if (itemMIPct) itemMIPct.textContent = opt.mi_pct + '%';
+
+    const rowMI = document.getElementById('rowMI');
+    const descMI = document.getElementById('descMI');
+    if (rowMI && descMI) {
+      if (opt.monthly_mi > 0) {
+        rowMI.style.opacity = '1';
+        descMI.textContent = 'Required until ~78-80% LTV';
+      } else {
+        rowMI.style.opacity = '0.6';
+        descMI.textContent = 'None ($0) — Down payment ≥ 20%';
+      }
+    }
+
+    const itemHOA = document.getElementById('itemHOA');
+    if (itemHOA) itemHOA.textContent = '$' + Math.round(opt.monthly_hoa).toLocaleString();
+    const itemHOAPct = document.getElementById('itemHOAPct');
+    if (itemHOAPct) itemHOAPct.textContent = opt.hoa_pct + '%';
+    const rowHOA = document.getElementById('rowHOA');
+    if (rowHOA) {
+      rowHOA.style.opacity = opt.monthly_hoa > 0 ? '1' : '0.6';
+    }
+
+    // Update DTI Front-End
+    if (opt.front_end_dti !== null) {
+      const frontBadge = document.getElementById('widgetFrontDtiBadge');
+      if (frontBadge) {
+        frontBadge.textContent = opt.front_end_dti + '%';
+        if (opt.front_end_dti <= 28.0) {
+          frontBadge.style.background = '#166534';
+        } else if (opt.front_end_dti <= 36.0) {
+          frontBadge.style.background = '#d97706';
+        } else {
+          frontBadge.style.background = '#dc2626';
+        }
+      }
+      const backText = document.getElementById('widgetBackDtiText');
+      if (backText && opt.back_end_dti !== null) {
+        backText.textContent = opt.back_end_dti + '%';
+      }
+    }
+  }
 
   const zoomPluginConfig = {
     pan: {

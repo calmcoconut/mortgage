@@ -16,7 +16,7 @@ The `tests/` directory contains 68 automated tests across 4 testing tiers, provi
 │   ├── [test_ui_compare_matrix.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_compare_matrix.py)
 │   │   └── Selenium test verifying the Section 11 worked fixture ($400k loan), recommendation banners, and hold period switches (5yr, 7yr, 30yr).
 │   ├── [test_ui_projected_costs.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_projected_costs.py)
-│   │   └── Selenium test verifying KPI cards, Chart.js canvas elements, projection metric switcher, and discount rate sensitivity.
+│   │   └── Selenium test verifying KPI cards, Chart.js canvas elements, Estimated Monthly Cost widget, projection metric switcher, and discount rate sensitivity.
 │   ├── [test_ui_json_import_edit.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_json_import_edit.py)
 │   │   └── Selenium test verifying scenario JSON import, compare page verification, and live Monaco/JSON code editing.
 │   ├── [test_ui_option_crud.py](file:///Users/alejandrodiaz/Documents/projects/loan/tests/e2e/test_ui_option_crud.py)

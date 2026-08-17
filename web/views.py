@@ -376,6 +376,97 @@ def scenario_projected_costs(request: HttpRequest, scenario_id: UUID) -> HttpRes
             opt_b.cumulative_mi_at_horizon - opt_a.cumulative_mi_at_horizon
         )
 
+    # Build monthly cost breakdowns for all options
+    monthly_tax = scenario.estimated_property_tax_monthly or Decimal("0")
+    monthly_ins = scenario.estimated_homeowners_insurance_monthly or Decimal("0")
+    monthly_hoa = scenario.estimated_hoa_monthly or Decimal("0")
+    gross_income = scenario.gross_monthly_income or Decimal("0")
+    debts = scenario.recurring_monthly_debts or Decimal("0")
+
+    monthly_cost_options = []
+    baseline_total = (
+        comparison.option_results[0].total_piti_monthly
+        if comparison.option_results
+        else Decimal("0")
+    )
+
+    for idx, opt_res in enumerate(comparison.option_results):
+        is_recommended = opt_res.option_id == comparison.recommended_option_id
+        monthly_pi = opt_res.monthly_pi
+        monthly_mi = opt_res.monthly_mi or Decimal("0")
+        total_monthly = opt_res.total_piti_monthly
+
+        pi_pct = (
+            round(float((monthly_pi / total_monthly) * 100), 1)
+            if total_monthly > 0
+            else 0.0
+        )
+        tax_pct = (
+            round(float((monthly_tax / total_monthly) * 100), 1)
+            if total_monthly > 0
+            else 0.0
+        )
+        ins_pct = (
+            round(float((monthly_ins / total_monthly) * 100), 1)
+            if total_monthly > 0
+            else 0.0
+        )
+        mi_pct = (
+            round(float((monthly_mi / total_monthly) * 100), 1)
+            if total_monthly > 0
+            else 0.0
+        )
+        hoa_pct = (
+            round(float((monthly_hoa / total_monthly) * 100), 1)
+            if total_monthly > 0
+            else 0.0
+        )
+
+        front_end_dti = None
+        back_end_dti = None
+        if gross_income > 0:
+            front_end_dti = round(float((total_monthly / gross_income) * 100), 1)
+            back_end_dti = round(
+                float(((total_monthly + debts) / gross_income) * 100), 1
+            )
+
+        monthly_diff_vs_baseline = (
+            total_monthly - baseline_total if idx > 0 else Decimal("0")
+        )
+
+        monthly_cost_options.append(
+            {
+                "option_id": str(opt_res.option_id),
+                "label": opt_res.label,
+                "source_type": opt_res.source_type,
+                "is_recommended": is_recommended,
+                "rate_pct_display": opt_res.rate_pct_display,
+                "apr_pct_display": opt_res.apr_pct_display,
+                "monthly_pi": float(monthly_pi),
+                "monthly_tax": float(monthly_tax),
+                "monthly_ins": float(monthly_ins),
+                "monthly_mi": float(monthly_mi),
+                "monthly_hoa": float(monthly_hoa),
+                "total_monthly": float(total_monthly),
+                "pi_pct": pi_pct,
+                "tax_pct": tax_pct,
+                "ins_pct": ins_pct,
+                "mi_pct": mi_pct,
+                "hoa_pct": hoa_pct,
+                "front_end_dti": front_end_dti,
+                "back_end_dti": back_end_dti,
+                "monthly_diff_vs_baseline": float(monthly_diff_vs_baseline),
+            }
+        )
+
+    primary_monthly_cost = (
+        monthly_cost_options[0] if monthly_cost_options else None
+    )
+    for mco in monthly_cost_options:
+        if mco["is_recommended"]:
+            primary_monthly_cost = mco
+            break
+
     context = {
         "scenario": scenario,
         "horizon_months": horizon_months,
@@ -398,6 +489,9 @@ def scenario_projected_costs(request: HttpRequest, scenario_id: UUID) -> HttpRes
         "break_even_explanation": comparison.break_even.break_even_explanation
         if comparison.break_even
         else "",
+        "monthly_cost_options": monthly_cost_options,
+        "monthly_cost_options_json": json.dumps(monthly_cost_options),
+        "primary_monthly_cost": primary_monthly_cost,
     }
 
     if request.headers.get("HX-Request") and request.GET.get("partial") == "charts":

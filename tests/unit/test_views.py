@@ -84,7 +84,15 @@ def test_scenario_projected_costs_view(client, sample_scenario):
     assert resp.status_code == 200
     content = resp.content.decode()
     assert "Projected financing costs" in content
+    assert "Estimated Monthly Payment" in content
     assert "chart_data_json" in resp.context
+    assert "monthly_cost_options" in resp.context
+    assert len(resp.context["monthly_cost_options"]) == 2
+    assert "primary_monthly_cost" in resp.context
+    primary = resp.context["primary_monthly_cost"]
+    assert primary["monthly_pi"] > 0
+    assert primary["total_monthly"] >= primary["monthly_pi"]
+
 
 
 @pytest.mark.django_db

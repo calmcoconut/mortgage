@@ -392,7 +392,7 @@ body {
 /* Charts Grid */
 .charts-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
 }
 
@@ -505,6 +505,59 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+
+/* Monthly Cost Widget Card */
+.monthly-cost-widget-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.monthly-opt-switcher-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.monthly-opt-tab-btn {
+  background: #f1f5f9;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.775rem;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.monthly-opt-tab-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.monthly-opt-tab-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.monthly-opt-tab-btn.active .tab-dot {
+  background-color: #38bdf8 !important;
+}
+
+.breakdown-item {
+  transition: background-color 0.15s ease;
+}
+
+.breakdown-item:hover {
+  background-color: #f1f5f9 !important;
 }
 
 /* Right Sidebar Info Card */

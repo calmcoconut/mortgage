@@ -87,8 +87,7 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
 
         # 3. Assert Right sidebar info
         info_card = self.driver.find_element(By.CLASS_NAME, "info-card")
-        self.assertIn("What's included?", info_card.text)
-        self.assertIn("Not included", info_card.text)
+        self.assertIn("What's included", info_card.text)
         self.assertIn("Verified Loan Estimate", info_card.text)
         self.assertIn("Advertised Market Quote", info_card.text)
 
@@ -137,5 +136,28 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         btn_equity.click()
         chart_title_eq = self.driver.find_element(By.ID, "mainChartTitle").text
         self.assertIn("home equity", chart_title_eq.lower())
+
+        # 8. Assert Estimated Monthly Cost Widget
+        widget = self.driver.find_element(By.ID, "monthlyCostWidget")
+        self.assertTrue(widget.is_displayed())
+        self.assertIn("ESTIMATED MONTHLY PAYMENT", widget.text.upper())
+        self.assertIn("PITI + HOA", widget.text)
+
+        # Assert hero total is rendered
+        hero_total = self.driver.find_element(By.ID, "widgetHeroTotal").text
+        self.assertTrue(hero_total.startswith("$"))
+
+        # Test switching options via widget tabs
+        tab_btns = self.driver.find_elements(By.CLASS_NAME, "monthly-opt-tab-btn")
+        if len(tab_btns) >= 2:
+            tab_btns[0].click()
+            opt_label_0 = self.driver.find_element(By.ID, "widgetOptionLabel").text
+            self.assertIn("OPTION", opt_label_0.upper())
+
+            tab_btns[1].click()
+            opt_label_1 = self.driver.find_element(By.ID, "widgetOptionLabel").text
+            self.assertIn("OPTION", opt_label_1.upper())
+
+
 
 
