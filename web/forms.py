@@ -133,8 +133,8 @@ class ScenarioForm(forms.ModelForm):
     )
     annual_appreciation_pct = forms.DecimalField(
         label="Annual Home Price Appreciation (%)",
-        max_digits=5,
-        decimal_places=2,
+        max_digits=8,
+        decimal_places=4,
         required=False,
         initial=Decimal("3.0"),
         widget=forms.NumberInput(
@@ -148,8 +148,8 @@ class ScenarioForm(forms.ModelForm):
     )
     marginal_tax_rate_pct = forms.DecimalField(
         label="Marginal Income Tax Bracket (%)",
-        max_digits=5,
-        decimal_places=2,
+        max_digits=8,
+        decimal_places=4,
         required=False,
         initial=Decimal("24.0"),
         widget=forms.NumberInput(
@@ -226,16 +226,16 @@ class ScenarioForm(forms.ModelForm):
         if val is None:
             return Decimal("0.0300")
         if val > Decimal("1.0"):
-            return val / Decimal("100")
-        return val
+            return (val / Decimal("100")).quantize(Decimal("0.0001"))
+        return val.quantize(Decimal("0.0001"))
 
     def clean_marginal_tax_rate_pct(self):
         val = self.cleaned_data.get("marginal_tax_rate_pct")
         if val is None:
             return Decimal("0.2400")
         if val > Decimal("1.0"):
-            return val / Decimal("100")
-        return val
+            return (val / Decimal("100")).quantize(Decimal("0.0001"))
+        return val.quantize(Decimal("0.0001"))
 
     def clean_filing_status(self):
         val = self.cleaned_data.get("filing_status")
@@ -253,19 +253,25 @@ class ScenarioForm(forms.ModelForm):
             self.fields["occupancy"].initial = "primary"
             self.fields["property_type"].initial = "single_family"
             self.initial.setdefault("property_type", "single_family")
+            self.initial["annual_appreciation_pct"] = Decimal("3.0")
+            self.initial["marginal_tax_rate_pct"] = Decimal("24.0")
             self.fields["annual_appreciation_pct"].initial = Decimal("3.0")
             self.fields["marginal_tax_rate_pct"].initial = Decimal("24.0")
             self.fields["filing_status"].initial = "single"
             self.fields["filing_status"].required = False
         else:
             if self.instance.annual_appreciation_pct is not None:
-                self.fields["annual_appreciation_pct"].initial = round(
+                pct_val = round(
                     self.instance.annual_appreciation_pct * Decimal("100"), 2
                 )
+                self.initial["annual_appreciation_pct"] = pct_val
+                self.fields["annual_appreciation_pct"].initial = pct_val
             if self.instance.marginal_tax_rate_pct is not None:
-                self.fields["marginal_tax_rate_pct"].initial = round(
+                tax_val = round(
                     self.instance.marginal_tax_rate_pct * Decimal("100"), 2
                 )
+                self.initial["marginal_tax_rate_pct"] = tax_val
+                self.fields["marginal_tax_rate_pct"].initial = tax_val
             for field_name in [
                 "property_value",
                 "loan_amount",
@@ -418,17 +424,17 @@ class LoanOptionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             if self.instance.note_rate is not None:
-                self.fields["rate_percent"].initial = (
-                    self.instance.note_rate * Decimal("100")
-                ).normalize()
+                rate_val = (self.instance.note_rate * Decimal("100")).normalize()
+                self.fields["rate_percent"].initial = rate_val
+                self.initial["rate_percent"] = rate_val
             if self.instance.apr is not None:
-                self.fields["apr_percent"].initial = (
-                    self.instance.apr * Decimal("100")
-                ).normalize()
+                apr_val = (self.instance.apr * Decimal("100")).normalize()
+                self.fields["apr_percent"].initial = apr_val
+                self.initial["apr_percent"] = apr_val
             if self.instance.points_pct is not None:
-                self.fields["points_percent"].initial = (
-                    self.instance.points_pct * Decimal("100")
-                ).normalize()
+                pts_val = (self.instance.points_pct * Decimal("100")).normalize()
+                self.fields["points_percent"].initial = pts_val
+                self.initial["points_percent"] = pts_val
             for field_name in [
                 "loan_amount",
                 "lender_credit",

@@ -100,6 +100,43 @@ def format_clean_label(raw_label: str) -> str:
     if raw.lower() in known_abbrevs:
         return known_abbrevs[raw.lower()]
 
+    # Check for parenthesis product tails like (30-YEAR FIXED), (30y fixed conventional), (5/6 ARM), (7/6 ARM)
+    match_tail = re.search(
+        r"\s*\(((?:30|15|10|7|5|3)(?:-year|-yr|\/1|\/6|y| yr| year)?\s*(?:fixed|arm)?(?:\s*(?:conforming|conventional))?)\)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if match_tail:
+        product_text = match_tail.group(1).strip().upper()
+        # Clean product text
+        if "30" in product_text and "FIXED" in product_text:
+            cleaned_product = "30Y Fixed"
+        elif "15" in product_text and "FIXED" in product_text:
+            cleaned_product = "15Y Fixed"
+        elif "10" in product_text and "FIXED" in product_text:
+            cleaned_product = "10Y Fixed"
+        elif "7/1" in product_text or "7/6" in product_text:
+            cleaned_product = "7/6 ARM" if "7/6" in product_text else "7/1 ARM"
+        elif "5/1" in product_text or "5/6" in product_text:
+            cleaned_product = "5/6 ARM" if "5/6" in product_text else "5/1 ARM"
+        elif "3/1" in product_text:
+            cleaned_product = "3/1 ARM"
+        else:
+            cleaned_product = product_text.title()
+
+        lender_prefix = raw[: match_tail.start()].strip()
+        if "/" in lender_prefix:
+            domain_part = lender_prefix.split("/")[0]
+            if "neohomeloans" in domain_part.lower():
+                lender_prefix = "Neo Home Loans"
+            else:
+                lender_prefix = re.sub(r"[_\-]+", " ", domain_part).title()
+        if lender_prefix.lower() in known_abbrevs:
+            lender_prefix = known_abbrevs[lender_prefix.lower()]
+        elif lender_prefix.isupper() or lender_prefix.islower():
+            lender_prefix = lender_prefix.title()
+        return f"{lender_prefix} · {cleaned_product}"
+
     # Clean URL or domain paths like "neohomeloans/branch/..." or "https://neohomeloans.com/..."
     if (
         "://" in raw
@@ -109,7 +146,7 @@ def format_clean_label(raw_label: str) -> str:
             re.IGNORECASE,
         )
         or re.search(
-            r"^[a-zA-Z0-9_\-]+\/(?:branch|lenders|rates|quotes)\b",
+            r"^[a-zA-Z0-9_\-]+\/(?:branch|lenders|rates|quotes|better)\b",
             raw,
             re.IGNORECASE,
         )
@@ -127,37 +164,6 @@ def format_clean_label(raw_label: str) -> str:
             clean_name = "Neo Home Loans"
         raw = clean_name
 
-    # Check for uppercase parenthesis product tails like (30-YEAR FIXED) or (7/1 ARM CONFORMING)
-    match_tail = re.search(
-        r"\s*\(((?:30|15|10|7|5|3)(?:-year|-yr|\/1)?\s*(?:fixed|arm)?(?:\s*conforming)?)\)",
-        raw,
-        flags=re.IGNORECASE,
-    )
-    if match_tail:
-        product_text = match_tail.group(1).strip().upper()
-        # Clean product text: "30-YEAR FIXED" -> "30Y Fixed", "7/1 ARM" -> "7/1 ARM"
-        if "30" in product_text and "FIXED" in product_text:
-            cleaned_product = "30Y Fixed"
-        elif "15" in product_text and "FIXED" in product_text:
-            cleaned_product = "15Y Fixed"
-        elif "10" in product_text and "FIXED" in product_text:
-            cleaned_product = "10Y Fixed"
-        elif "7/1" in product_text:
-            cleaned_product = "7/1 ARM"
-        elif "5/1" in product_text:
-            cleaned_product = "5/1 ARM"
-        elif "3/1" in product_text:
-            cleaned_product = "3/1 ARM"
-        else:
-            cleaned_product = product_text.title()
-
-        lender_prefix = raw[: match_tail.start()].strip()
-        if lender_prefix.lower() in known_abbrevs:
-            lender_prefix = known_abbrevs[lender_prefix.lower()]
-        elif lender_prefix.isupper() or lender_prefix.islower():
-            lender_prefix = lender_prefix.title()
-        return f"{lender_prefix} · {cleaned_product}"
-
     if raw.isupper() and len(raw) > 5:
         return raw.title()
 
@@ -174,15 +180,35 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
     max_term = max(len(opt.amortization) for opt in comparison.option_results)
     months = list(range(0, max_term + 1))
 
+    # Scenario appreciation and escrow context for projecting post-payoff horizons
+    property_val_0 = Decimal("0")
+    monthly_escrow = Decimal("0")
+    monthly_appreciation_factor = Decimal("1")
+    if comparison.scenario:
+        sc = comparison.scenario
+        down_payment = sc.down_payment or Decimal("0")
+        if sc.property_value and sc.property_value > Decimal("0"):
+            property_val_0 = sc.property_value
+        else:
+            property_val_0 = (sc.loan_amount or Decimal("0")) + down_payment
+        annual_appreciation = sc.annual_appreciation_pct or Decimal("0.03")
+        monthly_appreciation_factor = Decimal("1") + (
+            annual_appreciation / Decimal("12")
+        )
+        monthly_escrow = (
+            (sc.estimated_property_tax_monthly or Decimal("0"))
+            + (sc.estimated_homeowners_insurance_monthly or Decimal("0"))
+            + (sc.estimated_hoa_monthly or Decimal("0"))
+        )
+
     series = []
     for opt in comparison.option_results:
-        # Precomputed cumulative financing cost
+        # Precomputed cumulative financing cost (holds constant once paid off)
         cost_series = [float(round(c, 2)) for c in opt.financing_cost_by_month]
-        # Pad if option term was shorter
         if len(cost_series) < len(months):
             cost_series.extend([cost_series[-1]] * (len(months) - len(cost_series)))
 
-        # Precomputed remaining loan balance (month 0 is initial loan amount, then row balances)
+        # Precomputed remaining loan balance (0 once paid off)
         balance_series = [
             float(round(opt.amortization[0].principal + opt.amortization[0].balance, 2))
             if opt.amortization
@@ -197,16 +223,47 @@ def build_projected_costs_chart_data(comparison: ComparisonResult) -> dict[str, 
         principal_by_month = [0.0] + [
             float(round(r.principal, 2)) for r in opt.amortization
         ]
+        if len(principal_by_month) < len(months):
+            principal_by_month.extend([0.0] * (len(months) - len(principal_by_month)))
+
         interest_by_month = [0.0] + [
             float(round(r.interest, 2)) for r in opt.amortization
         ]
+        if len(interest_by_month) < len(months):
+            interest_by_month.extend([0.0] * (len(months) - len(interest_by_month)))
+
         mi_by_month = [0.0] + [
             float(round(r.mortgage_insurance, 2)) for r in opt.amortization
         ]
+        if len(mi_by_month) < len(months):
+            mi_by_month.extend([0.0] * (len(months) - len(mi_by_month)))
 
+        # Outflow series (continues with escrow once loan is paid off)
         outflow_series = [float(round(v, 2)) for v in opt.total_outflow_by_month]
+        if len(outflow_series) < len(months):
+            last_outflow = Decimal(str(outflow_series[-1]))
+            for _ in range(len(months) - len(outflow_series)):
+                last_outflow += monthly_escrow
+                outflow_series.append(float(round(last_outflow, 2)))
+
+        # Home equity series (continues growing with full property value once loan balance is 0)
         equity_series = [float(round(v, 2)) for v in opt.home_equity_by_month]
+        if len(equity_series) < len(months):
+            for m in range(len(equity_series), len(months)):
+                if property_val_0 > Decimal("0"):
+                    future_prop_val = property_val_0 * (
+                        monthly_appreciation_factor**m
+                    )
+                else:
+                    future_prop_val = Decimal(str(equity_series[-1]))
+                equity_series.append(float(round(future_prop_val, 2)))
+
+        # After tax cost series (holds constant once paid off)
         after_tax_series = [float(round(v, 2)) for v in opt.after_tax_cost_by_month]
+        if len(after_tax_series) < len(months):
+            after_tax_series.extend(
+                [after_tax_series[-1]] * (len(months) - len(after_tax_series))
+            )
 
         is_verified = opt.source_type in ["loan_estimate", "manual"]
         clean_lbl = format_clean_label(opt.label)

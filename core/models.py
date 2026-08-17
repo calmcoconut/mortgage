@@ -135,6 +135,7 @@ class ComparisonResult:
     option_results: tuple[OptionResult, ...]
     break_even: BreakEvenResult | None
     recommended_option_id: UUID | None = None
+    scenario: ScenarioInput | None = None
 
 
 @dataclass(frozen=True)

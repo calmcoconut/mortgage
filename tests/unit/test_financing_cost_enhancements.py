@@ -125,6 +125,37 @@ def test_scenario_form_appreciation_and_tax_handling():
     assert instance.marginal_tax_rate_pct == Decimal("0.2800")
     assert instance.itemize_deductions is True
 
+    # Test editing existing scenario instance
+    edit_form_get = ScenarioForm(instance=instance)
+    assert edit_form_get.initial["annual_appreciation_pct"] == Decimal("3.50")
+    assert edit_form_get.initial["marginal_tax_rate_pct"] == Decimal("28.00")
+
+    # Test re-submitting with decimal percentage string or float decimal
+    edit_data = {
+        "name": "Appreciation Test Scenario Updated",
+        "purpose": "purchase",
+        "property_value": "$850,000",
+        "loan_amount": "$680,000",
+        "down_payment": "$170,000",
+        "fico_band": "760+",
+        "occupancy": "primary",
+        "property_type": "single_family",
+        "state": "CA",
+        "program": "conventional",
+        "term_months": 360,
+        "expected_horizon_months": 84,
+        "annual_appreciation_pct": "0.0350",  # 4 decimal places should also be cleanly parsed
+        "marginal_tax_rate_pct": "0.2800",
+        "itemize_deductions": False,
+        "filing_status": "single",
+    }
+    edit_form_post = ScenarioForm(data=edit_data, instance=instance)
+    assert edit_form_post.is_valid(), edit_form_post.errors
+    updated_instance = edit_form_post.save()
+    assert updated_instance.annual_appreciation_pct == Decimal("0.0350")
+    assert updated_instance.marginal_tax_rate_pct == Decimal("0.2800")
+
+
 
 @pytest.mark.django_db
 def test_json_import_export_with_appreciation_and_tax():

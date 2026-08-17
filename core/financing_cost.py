@@ -385,4 +385,5 @@ def compare_options(
         option_results=tuple(results),
         break_even=break_even,
         recommended_option_id=recommended_id,
+        scenario=scenario,
     )

@@ -42,6 +42,9 @@ The `web/` package provides the Django persistence layer, HTML templates, HTMX-d
 │       │   └── Local vendor bundle powering interactive wheel zoom and pan on FRED historical benchmark timeline.
 │       └── [hammer.min.js](file:///Users/alejandrodiaz/Documents/projects/loan/web/static/js/hammer.min.js)
 │           └── Local vendor bundle for touch and pinch gesture detection.
+├── templatetags/
+│   └── [mortgage_tags.py](file:///Users/alejandrodiaz/Documents/projects/loan/web/templatetags/mortgage_tags.py)
+│       └── Django template filters for negative-safe formatted currency (`money_fmt`, `money_signed`, `money_abs`).
 └── templates/
     ├── [base.html](file:///Users/alejandrodiaz/Documents/projects/loan/web/templates/base.html)
     │   └── Master HTML skeleton with navigation bar, responsive drawer, and methodology footer.

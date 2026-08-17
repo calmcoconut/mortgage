@@ -137,6 +137,14 @@ class TestProjectedCostsE2E(StaticLiveServerTestCase):
         chart_title_eq = self.driver.find_element(By.ID, "mainChartTitle").text
         self.assertIn("home equity", chart_title_eq.lower())
 
+        # Assert all datasets have full point length matching labels (e.g. 361)
+        num_labels = self.driver.execute_script("return window.costChart.data.labels.length;")
+        dataset_lengths = self.driver.execute_script(
+            "return window.costChart.data.datasets.map(d => d.data.length);"
+        )
+        for d_len in dataset_lengths:
+            self.assertEqual(d_len, num_labels)
+
         # 8. Assert Estimated Monthly Cost Widget
         widget = self.driver.find_element(By.ID, "monthlyCostWidget")
         self.assertTrue(widget.is_displayed())

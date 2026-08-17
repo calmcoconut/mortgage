@@ -805,12 +805,13 @@
       plugins: {
         legend: {
           position: 'top',
-          align: 'end',
+          align: 'center',
           labels: {
-            boxWidth: 28,
-            boxHeight: 2,
-            usePointStyle: false,
-            font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' }
+            boxWidth: 16,
+            boxHeight: 8,
+            usePointStyle: true,
+            padding: 12,
+            font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }
           }
         },
         tooltip: {
@@ -835,7 +836,14 @@
         },
         y: {
           ticks: {
-            callback: function(val) { return '$' + (val >= 1000 ? (val/1000) + 'k' : val); }
+            callback: function(val) {
+              if (Math.abs(val) >= 1000000) {
+                return (val < 0 ? '-$' : '$') + (Math.abs(val) / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+              } else if (Math.abs(val) >= 1000) {
+                return (val < 0 ? '-$' : '$') + Math.round(Math.abs(val) / 1000) + 'k';
+              }
+              return (val < 0 ? '-$' : '$') + Math.abs(val);
+            }
           },
           grid: { color: '#f1f5f9' }
         }
